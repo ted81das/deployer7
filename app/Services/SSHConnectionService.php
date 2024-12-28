@@ -74,20 +74,23 @@ public function verifyApplicationAccess(string $hostname, string $username, stri
             // Initialize SSH connection
             $ssh = new SSH2($hostname);
             
+           // $privateKey = stripcslashes($privateKey);
+            $privateKey = str_replace('\n', "\n", $privateKey);
+
             // Load private key from string
             $key = PublicKeyLoader::load($privateKey);
 
             // Attempt login
             if (!$ssh->login($username, $key)) {
                 Log::error("SSH login failed for user {$username} on {$hostname}");
-                dd($key,'HERE FAILED');
+              //  dd($privateKey,$key,'HERE FAILED');
                 return false;
             }
 
             // Verify application directory access
             $appPath = "/home/{$username}/";
             $result = $ssh->exec("test -d {$appPath} && echo 'exists'");
-            
+            //       dd($privateKey,$key,'HERE Success');
             $hasAccess = trim($result) === 'exists';
             
             if (!$hasAccess) {

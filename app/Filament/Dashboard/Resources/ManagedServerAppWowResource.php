@@ -145,7 +145,7 @@ class ManagedServerAppWowResource extends Resource
                Action::make('manage')
                 ->icon('heroicon-o-cog')
                 ->url(fn ($record) => $record->phpseclib_connection_status 
-                    ? route('filament.resources.managed-server-app-wows.manage', $record) 
+                    ? route('filament.dashboard.resources.managed-server-app-wows.manage', $record) 
                     : null)
                 ->disabled(fn ($record) => !$record->phpseclib_connection_status),  
                 
@@ -185,6 +185,8 @@ class ManagedServerAppWowResource extends Resource
             'create' => Pages\CreateManagedServerAppWow::route('/create'),
             'view' => Pages\ViewManagedServerAppWow::route('/{record}'),
             'edit' => Pages\EditManagedServerAppWow::route('/{record}/edit'),
+            // Add this new route for manage
+        'manage' => Pages\ManageApplication::route('/{record}/manage'),
         ];
     }
 
