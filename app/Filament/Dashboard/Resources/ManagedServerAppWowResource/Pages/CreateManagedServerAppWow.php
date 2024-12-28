@@ -88,7 +88,8 @@ protected function mutateFormDataBeforeCreate(array $data): array
 
 
         // Step 4: Create System User via ServerAvatar API
-        $client = new Client();
+try {
+       $client = new Client();
         $systemUserResponse = $client->post(
             config('services.serveravatar.api_url') . '/organizations/' . 
             config('services.serveravatar.org_id') . '/servers/' . 
@@ -116,6 +117,24 @@ protected function mutateFormDataBeforeCreate(array $data): array
             ->success()
             ->body("User {$randomUsername} created successfully.")
             ->send();
+
+
+} catch (\Exception $e) {
+            $errorMessage = $this->extractErrorMessage($e);
+            \Log::error('System user creation failed:', [
+                'error' => $errorMessage,
+                'username' => $randomUsername
+            ]);
+
+            Notification::make()
+                ->title('System User Creation Failed')
+                ->danger()
+                ->body($errorMessage)
+                ->persistent()
+                ->send();
+
+            throw new \Exception('System user creation failed: ' . $errorMessage);
+        }
 
 
         // Generate database credentials with only alphanumeric characters
@@ -208,6 +227,8 @@ $privateKey1 = preg_replace('/\\\\n/', "\n", $privateKey1); // Convert \n to act
             'phpseclib_connection_status' => false,
         ];
 
+
+try {
         // Step 5: Deploy application via ServerAvatar API
         $applicationResponse = $client->post(
             config('services.serveravatar.api_url') . '/organizations/' . 
@@ -254,9 +275,26 @@ $privateKey1 = preg_replace('/\\\\n/', "\n", $privateKey1); // Convert \n to act
             ->body("Application {$formData['application_name']} deployed successfully.")
             ->send();
         
+} catch (\Exception $e) {
+            $errorMessage = $this->extractErrorMessage($e);
+            \Log::error('Application deployment failed:', [
+                'error' => $errorMessage,
+                'application' => $formData['application_name']
+            ]);
+
+            Notification::make()
+                ->title('Application Deployment Failed')
+                ->danger()
+                ->body($errorMessage)
+                ->persistent()
+                ->send();
+
+            throw new \Exception('Application deployment failed: ' . $errorMessage);
+        }
         //ADD SSL AND SSH TOGGLE 
         
         // Step 6: Install SSL Certificate
+try {
 $sslResponse = $client->post(
     config('services.serveravatar.api_url') . '/organizations/' . 
     config('services.serveravatar.org_id') . '/servers/' . 
@@ -284,6 +322,24 @@ $formData['ssl_status'] = $sslData['status'] ?? 'pending';
                 ->success()
                 ->body($sslData['message'] ?? 'SSL certificate installed successfully.')
                 ->send();
+
+} catch (\Exception $e) {
+                $errorMessage = $this->extractErrorMessage($e);
+                \Log::error('SSL installation failed:', [
+                    'error' => $errorMessage,
+                    'application_id' => $applicationId
+                ]);
+
+                Notification::make()
+                    ->title('SSL Installation Failed')
+                    ->danger()
+                    ->body($errorMessage)
+                    ->persistent()
+                    ->send();
+
+                // Don't throw exception for SSL failure, just log and notify
+                // Application can still function without SSL initially
+            }
 
 // Step 7: Toggle SSH Access for Application User
 $sshAccessResponse = $client->get(

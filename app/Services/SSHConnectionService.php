@@ -6,6 +6,8 @@ use phpseclib3\Net\SSH2;
 use phpseclib3\Crypt\PublicKeyLoader;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use App\Models\ManagedServerAppWow;
+use Illuminate\Support\Facades\Crypt;
 
 class SSHConnectionService
 {
@@ -27,39 +29,72 @@ public function generateKeyPair(string $username): array
             'publicKey' => $publicKey->toString('OpenSSH')
         ];
     }
-/*
 
-public function verifyApplicationAccess(string $hostname, string $username, string $keyPath): bool
+
+
+  /**
+     * Execute a command on the remote server using application-specific SSH key
+     */
+    public function executeCommand(ManagedServerAppWow $app, string $command): string
     {
         try {
-            $ssh = new SSH2($hostname);
-            
-            if (!Storage::disk('local')->exists($keyPath)) {
-                \Log::error("SSH key not found at path: {$keyPath}");
-                return false;
+            // Validate required data
+            if (empty($app->application_sshkey_private) || 
+                empty($app->application_user) || 
+                empty($app->app_hostname)) {
+                throw new \Exception('Missing required SSH connection data');
             }
 
-            $privateKeyContent = Storage::disk('local')->get($keyPath);
-            $key = PublicKeyLoader::load($privateKeyContent);
+            // Get decrypted private key from database
+            $privateKeyString = Crypt::decryptString($app->application_sshkey_private);
+            
+            // Load the private key
+            $privateKey = PublicKeyLoader::load($privateKeyString);
 
-            if (!$ssh->login($username, $key)) {
-                \Log::error("SSH login failed for user: {$username}");
-                return false;
+            // Create SSH connection
+            $ssh = new SSH2($app->app_hostname);
+
+            // Attempt to login with the application user and private key
+            if (!$ssh->login($app->application_user, $privateKey)) {
+                throw new \Exception('SSH authentication failed');
             }
 
-            // Check if we can access the application directory
-            $appPath = "/home/{$username}/";
-            $result = $ssh->exec("test -d {$appPath} && echo 'exists'");
+            // Build the full command with proper directory change
+            $appPath = "/home/{$app->application_user}/{$app->application_name}/public_html";
+            $fullCommand = "cd {$appPath} && {$command}";
+
+            // Execute the command
+            $output = $ssh->exec($fullCommand);
             
-            return trim($result) === 'exists';
+            // Check command exit status
+            if ($ssh->getExitStatus() !== 0) {
+                throw new \Exception("Command execution failed with output: " . $output);
+            }
+
+            // Log successful execution
+            Log::info('WP-CLI command executed successfully', [
+                'app_id' => $app->id,
+                'command' => $command,
+                'user' => $app->application_user
+            ]);
+
+            return $output;
 
         } catch (\Exception $e) {
-            \Log::error("SSH connection failed: " . $e->getMessage());
-            return false;
+            Log::error('Command execution failed: ' . $e->getMessage(), [
+                'app_id' => $app->id,
+                'command' => $command,
+                'user' => $app->application_user ?? 'unknown'
+            ]);
+            throw $e;
+        } finally {
+            if (isset($ssh)) {
+                $ssh->disconnect();
+            }
         }
     }
 
-*/
+
  /**
      * Test SSH connection using provided credentials
      * 

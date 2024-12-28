@@ -12,7 +12,7 @@ use App\Services\SSHConnectionService;
 use Illuminate\Support\Facades\Crypt;  // Add this import
 use Illuminate\Support\Facades\Log;
 
-class ManagedServerAppWOW extends Model
+class ManagedServerAppWow extends Model
 {
     use HasFactory, SoftDeletes, HasUuids;
 
