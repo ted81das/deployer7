@@ -11,6 +11,8 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Notifications\Notification;
+use App\Services\ControlPanel\ControlPanelServiceFactory;
 
 class ServerControlPanelResource extends Resource
 {
@@ -73,7 +75,45 @@ class ServerControlPanelResource extends Resource
                     ->dateTime(),
             ])
             ->actions([
-                // Authenticate Action
+                // Add refresh providers action
+                Tables\Actions\Action::make('refresh_providers')
+                    ->icon('heroicon-o-arrow-path')
+                    ->visible(fn (ServerControlPanel $record) => 
+                        $record->authentication_status === 'authenticated')
+                    ->action(function (ServerControlPanel $record) {
+                        try {
+                            
+                    // Get credentials as array, not calling it as a function
+                            $credentials = $record->getCredentials();
+                            
+                            $service = app(ControlPanelServiceFactory::class)
+                                ->create($record->type, $credentials);
+                            
+                            $providers = $service->populateServerProviders($record);
+                            
+                            $record->update([
+                                'available_providers' => $providers
+                            ]);
+                            
+                            /* $service = app(ControlPanelServiceFactory::class)
+                                ->create($record->type,
+                                    $record->getDecryptedApiToken());
+                            $providers = $service->populateServerProviders($record); */
+                            
+                            Notification::make()
+                                ->success()
+                                ->title('Providers Updated')
+                                ->body('Server providers have been refreshed successfully.')
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Failed to Update Providers')
+                                ->body($e->getMessage())
+                                ->send();
+                        }
+                    }),
+                    // Authenticate Action
                 Tables\Actions\Action::make('authenticate')
                     ->icon('heroicon-o-key')
                     ->visible(fn (ServerControlPanel $record) => 

@@ -125,27 +125,46 @@ public function installSSL(array $data): bool
 
 
 
+public function populateServerProviders(ServerControlPanel $controlPanel): array
+    {
+
+//ORG ID IS HARD CODED to2152 -- MUST BE CHANGED
+//**** EROR ****///
+
+        $response = Http::withHeaders([
+            'Accept' => 'application/json',
+            'Authorization' => $controlPanel->getDecryptedApiToken()
+        ])->get("https://api.serveravatar.com/organizations/".'2152'."/cloud-server-providers", [
+            'pagination' => 1
+        ]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Failed to fetch providers from ServerAvatar');
+        }
+
+        $providers = collect($response->json('data'))
+            ->mapWithKeys(function ($provider) {
+                return [$provider['id'] => $provider['name']];
+            })->toArray();
+
+        $controlPanel->update(['available_providers' => $providers]);
+
+        return $providers;
+    }
+
+
+
 
 
 
     protected function makeRequest(string $method, string $endpoint, array $data = []): array
     {
-
-$organizationId = '2152';  // This can be dynamic or stored in a config
-//ERROR ERROR HARD CODED VALUE TO BE UPDATED ;; HARDCODED VALUE TO BE UPDATED
-//*** ERRROR ***///
-$response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'Authorization' => "Bearer {$this->apiToken}"
-        ])->$method("{$this->baseUrl}/organizations/{$organizationId}{$endpoint}", $data);
-
-/*        $response = Http::withHeaders([
+        $response = Http::withHeaders([
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
             'Authorization' => "Bearer {$this->apiToken}"
         ])->$method("{$this->baseUrl}/organizations/{$this->organizationId}{$endpoint}", $data);
-*/
+
         if (!$response->successful()) {
             throw new ServerProvisioningException(
                 "ServerAvatar API error: {$response->body()}",
@@ -153,20 +172,8 @@ $response = Http::withHeaders([
             );
         }
 
-//        return $response->json();
-
-
- $providers = collect($response->json('data'))
-            ->mapWithKeys(function ($provider) {
-                return [$provider['id'] => $provider['name']];
-            })->toArray();
-
-        return $providers;
-
+        return $response->json();
     }
-
-
-
 
 
    /**
@@ -802,46 +809,6 @@ $response = Http::withHeaders([
             return false;
         }
     }
-
-
-
-
- public function populateServerProviders(ServerControlPanel $controlPanel): array
-    {
-     
-$organizationId = '2152';  // This can be dynamic or stored in a config
-$response = Http::withHeaders([
-    'Accept' => 'application/json',
-    'Authorization' => $controlPanel->getDecryptedApiToken()
-])->get("https://api.serveravatar.com/organizations/{$organizationId}/cloud-server-providers", [
-    'pagination' => 1
-]);
-
-/*   $response = Http::withHeaders([
-            'Accept' => 'application/json',
-            'Authorization' => $controlPanel->getDecryptedApiToken()
-        ])->get("https://api.serveravatar.com/organizations/{$controlPanel->meta_data['organization']}/cloud-server-providers", [
-            'pagination' => 1
-        ]);*/
-
-        if (!$response->successful()) {
-            throw new \Exception('Failed to fetch providers from ServerAvatar');
-        }
-
-        $providers = collect($response->json('data'))
-            ->mapWithKeys(function ($provider) {
-                return [$provider['id'] => $provider['name']];
-            })->toArray();
-
-        $controlPanel->update(['available_providers' => $providers]);
-
-        return $providers;
-    }
-
-
-
-
-
 
 
 

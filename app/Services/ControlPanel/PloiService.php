@@ -82,6 +82,35 @@ class PloiService implements ControlPanelServiceInterface
         }
     }
 
+//method to populate server providers
+public function populateServerProviders(ServerControlPanel $controlPanel): array
+    {
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $controlPanel->getDecryptedApiToken(),
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json'
+        ])->get('https://ploi.io/api/user/server-providers');
+
+        if (!$response->successful()) {
+            throw new \Exception('Failed to fetch providers from Ploi');
+        }
+
+        $providers = collect($response->json())
+            ->mapWithKeys(function ($provider) {
+                return [$provider['id'] => $provider['name']];
+            })->toArray();
+
+        $controlPanel->update(['available_providers' => $providers]);
+
+        return $providers;
+    }
+
+
+
+
+
+
+
 
     public function transformCreateServerData(array $data): array
     {

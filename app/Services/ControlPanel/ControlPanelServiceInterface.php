@@ -19,6 +19,8 @@ interface ControlPanelServiceInterface
     public function transformServerResponse(array $response): array;
     public function gitDeploykeyGenerate(array $data): array;
     public function addgitDeployKeytoRepo(string $repoUrl, string $deployKey): bool;
+ //add refresh ServerProviders list   
+ public function populateServerProviders(ServerControlPanel $controlPanel): array;
 }
 
 

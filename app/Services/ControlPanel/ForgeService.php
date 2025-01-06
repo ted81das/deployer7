@@ -71,6 +71,34 @@ class ForgeService implements ControlPanelServiceInterface
         }
     }
 
+
+
+//populate server providers
+public function populateServerProviders(ServerControlPanel $controlPanel): array
+    {
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $controlPanel->getDecryptedApiToken(),
+            'Accept' => 'application/json'
+        ])->get('https://forge.laravel.com/api/v1/credentials');
+
+        if (!$response->successful()) {
+            throw new \Exception('Failed to fetch providers from Forge');
+        }
+
+        $providers = collect($response->json('credentials'))
+            ->mapWithKeys(function ($credential) {
+                return [$credential['id'] => $credential['type']];
+            })->toArray();
+
+        $controlPanel->update(['available_providers' => $providers]);
+
+        return $providers;
+    }
+
+
+
+
+
     public function transformCreateServerData(array $data): array
     {
         return [

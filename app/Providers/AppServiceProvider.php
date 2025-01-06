@@ -32,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
             return new PaymentManager(...$this->app->tagged('payment-providers'));
         });
 
+ $this->app->singleton(ControlPanelServiceFactory::class, function ($app) {
+            return new ControlPanelServiceFactory();
+        });
+
+
     }
 
     /**

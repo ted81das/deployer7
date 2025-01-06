@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Crypt;
 
 class ServerControlPanel extends Model
 {
@@ -111,6 +112,128 @@ protected static function boot()
     }
 
 
+
+
+
+    /**
+     * Get the decrypted API token
+     */
+
+
+
+    /**
+     * Get the decrypted API token
+     */
+    public function getDecryptedApiToken(): ?string
+    {
+        try {
+            if (empty($this->api_token)) {
+                return null;
+            }
+            return Crypt::decryptString($this->api_token);
+        } catch (\Exception $e) {
+            return $this->api_token; // Return raw value if decryption fails
+        }
+    }
+
+    /**
+     * Set the API token
+     */
+    public function setApiTokenAttribute($value)
+    {
+        if (!empty($value)) {
+            $this->attributes['api_token'] = Crypt::encryptString($value);
+        }
+    }
+
+    /**
+     * Get the decrypted API secret
+     */
+    public function getDecryptedApiSecret(): ?string
+    {
+        try {
+            if (empty($this->api_secret)) {
+                return null;
+            }
+            return Crypt::decryptString($this->api_secret);
+        } catch (\Exception $e) {
+            return $this->api_secret; // Return raw value if decryption fails
+        }
+    }
+
+    /**
+     * Set the API secret
+     */
+    public function setApiSecretAttribute($value)
+    {
+        if (!empty($value)) {
+            $this->attributes['api_secret'] = Crypt::encryptString($value);
+        }
+    }
+
+    /**
+     * Get credentials based on control panel type
+     */
+    public function getCredentials(): array
+    {
+        if ($this->type === 'cloudways') {
+            return [
+                'api_client' => $this->api_client,
+                'api_secret' => $this->getDecryptedApiSecret(),
+            ];
+        }
+
+        return [
+            'api_token' => $this->getDecryptedApiToken(),
+        ];
+    }
+
+
+
+/*
+
+    public function getDecryptedApiToken(): ?string
+
+    {
+        if ($this->type === 'cloudways') {
+            return null; // Cloudways uses api_client and api_secret instead
+        }
+        
+        return $this->api_token ? decrypt($this->getRawOriginal('api_token')) : null;
+    }
+
+    
+    // Get the decrypted API secret (for Cloudways)
+     
+  
+  public function getDecryptedApiSecret(): ?string
+    {
+        if ($this->type !== 'cloudways') {
+            return null;
+        }
+        
+        return $this->api_secret ? decrypt($this->getRawOriginal('api_secret')) : null;
+    }
+
+    
+     // Get credentials based on control panel type
+     
+    public function getCredentials(): array
+    {
+        if ($this->type === 'cloudways') {
+            return [
+                'api_client' => $this->api_client,
+                'api_secret' => $this->getDecryptedApiSecret(),
+            ];
+        }
+
+        return [
+            'api_token' => $this->getDecryptedApiToken(),
+        ];
+    }
+
+*/
+
    public function authenticate()
     {
         try {
@@ -153,6 +276,45 @@ protected static function boot()
             throw new \Exception('Failed to fetch providers: ' . $e->getMessage());
         }
     }
+
+
+public function getControlPanelService()
+{
+    $serviceMap = [
+        'cloudways' => \App\Services\ControlPanel\CloudwaysService::class,
+        'forge' => \App\Services\ControlPanel\ForgeService::class,
+        'gridpane' => \App\Services\ControlPanel\GridPaneService::class,
+        'ploi' => \App\Services\ControlPanel\PloiService::class,
+        'serveravatar' => \App\Services\ControlPanel\ServerAvatarService::class,
+        'spinupwp' => \App\Services\ControlPanel\SpinupWPService::class,
+    ];
+
+    if (!isset($serviceMap[$this->type])) {
+        throw new \Exception("Unsupported control panel type: {$this->type}");
+    }
+
+    // Get the service class
+    $serviceClass = $serviceMap[$this->type];
+
+    // Initialize the service with appropriate parameters based on type
+    return match($this->type) {
+        'serveravatar' => new $serviceClass(
+            $this->api_token,
+            $this->organization_id
+        ),
+        'ploi' => new $serviceClass(
+            $this->api_token
+        ),
+        'cloudways', 'forge', 'gridpane', 'spinupwp' => new $serviceClass(
+            $this->api_token,
+            $this->type
+        ),
+        default => throw new \Exception("Unsupported control panel type")
+    };
+}
+
+
+
 
 
 
