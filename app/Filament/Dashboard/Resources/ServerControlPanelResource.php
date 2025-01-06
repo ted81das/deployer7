@@ -13,6 +13,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use App\Services\ControlPanel\ControlPanelServiceFactory;
+use App\Services\ControlPanel\ServerAvatarService;
 
 class ServerControlPanelResource extends Resource
 {
@@ -77,43 +78,41 @@ class ServerControlPanelResource extends Resource
             ->actions([
                 // Add refresh providers action
                 Tables\Actions\Action::make('refresh_providers')
-                    ->icon('heroicon-o-arrow-path')
-                    ->visible(fn (ServerControlPanel $record) => 
-                        $record->authentication_status === 'authenticated')
-                    ->action(function (ServerControlPanel $record) {
-                        try {
-                            
-                    // Get credentials as array, not calling it as a function
-                            $credentials = $record->getCredentials();
-                            
-                            $service = app(ControlPanelServiceFactory::class)
-                                ->create($record->type, $credentials);
-                            
-                            $providers = $service->populateServerProviders($record);
-                            
-                            $record->update([
-                                'available_providers' => $providers
-                            ]);
-                            
-                            /* $service = app(ControlPanelServiceFactory::class)
-                                ->create($record->type,
-                                    $record->getDecryptedApiToken());
-                            $providers = $service->populateServerProviders($record); */
-                            
-                            Notification::make()
-                                ->success()
-                                ->title('Providers Updated')
-                                ->body('Server providers have been refreshed successfully.')
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->danger()
-                                ->title('Failed to Update Providers')
-                                ->body($e->getMessage())
-                                ->send();
-                        }
-                    }),
-                    // Authenticate Action
+    ->icon('heroicon-o-arrow-path')
+    ->visible(fn (ServerControlPanel $record) => 
+        $record->authentication_status === 'authenticated')
+    ->action(function (ServerControlPanel $record) {
+        try {
+            $credentials = $record->getCredentials(); // Make sure this returns an array
+           // dd($credentials);
+           // Extract the api_token from credentials array
+            $apiToken = unserialize($credentials['api_token']);
+             // Create service instance with proper parameters
+            $service = new ServerAvatarService(
+                apiToken: $apiToken,
+                organizationId: '2152' // Or get from record if available
+            );
+            //$service = app(ControlPanelServiceFactory::class)
+               // ->create($record->type, $apiToken);
+            
+            $providers = $service->populateServerProviders($record);
+            
+            $record->update([
+                'available_providers' => $providers
+            ]);
+
+            Notification::make()
+                ->success()
+                ->title('Providers Updated')
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('Failed to Update Providers')
+                ->body($e->getMessage())
+                ->send();
+        }
+    }),             // Authenticate Action
                 Tables\Actions\Action::make('authenticate')
                     ->icon('heroicon-o-key')
                     ->visible(fn (ServerControlPanel $record) => 

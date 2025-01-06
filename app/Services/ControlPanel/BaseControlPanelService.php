@@ -21,7 +21,7 @@ abstract class BaseControlPanelService implements ControlPanelServiceInterface
     protected function getBaseUrl(): string
     {
         return match($this->type) {
-            'serveravatar' => 'https://api.serveravatar.com/v1',
+            'serveravatar' => 'https://api.serveravatar.com',
             'ploi' => 'https://ploi.io/api',
             'spinupwp' => 'https://api.spinupwp.com/v1',
             'cloudways' => 'https://api.cloudways.com/api/v1',
@@ -176,4 +176,3 @@ abstract class BaseControlPanelService implements ControlPanelServiceInterface
         };
     }
 }
-

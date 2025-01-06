@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services\ControlPanel;
+use App\Models\ServerControlPanel;  // Add this import
 
 interface ControlPanelServiceInterface
 {
@@ -22,5 +23,3 @@ interface ControlPanelServiceInterface
  //add refresh ServerProviders list   
  public function populateServerProviders(ServerControlPanel $controlPanel): array;
 }
-
-

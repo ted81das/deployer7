@@ -34,7 +34,7 @@ class ServerAvatarService extends BaseControlPanelService
      * organization ID added to SERVERCONTROlPANEL model through a future migration
      * ***********************************
 
-     */
+  
     public function __construct(
         string $apiToken, 
         ?string $organizationId = '2152'
@@ -44,7 +44,18 @@ class ServerAvatarService extends BaseControlPanelService
         $this->baseUrl = config('services.serveravatar.api_url', 'https://api.serveravatar.com/v1');
         $this->initiateClient();
     }
+    
+       */
 
+
+public function __construct(
+    string $apiToken, 
+    ?string $organizationId = '2152'
+) {
+    parent::__construct($apiToken, 'serveravatar'); // Call parent constructor
+    $this->organizationId = $organizationId;
+    $this->initiateClient();
+}
 
 
 
@@ -153,7 +164,8 @@ $response = Http::withHeaders([
             );
         }
 
-//        return $response->json();
+//        return $response->json();$baseUrl
+
 
 
  $providers = collect($response->json('data'))
@@ -806,7 +818,8 @@ $response = Http::withHeaders([
 
 
 
- public function populateServerProviders(ServerControlPanel $controlPanel): array
+/*
+public function populateServerProviders(ServerControlPanel $controlPanel): array
     {
      
 $organizationId = '2152';  // This can be dynamic or stored in a config
@@ -824,9 +837,9 @@ $response = Http::withHeaders([
             'pagination' => 1
         ]);*/
 
-        if (!$response->successful()) {
-            throw new \Exception('Failed to fetch providers from ServerAvatar');
-        }
+    /*    if (!$response->successful()) {
+            throw new \Exception('Failed to fetch providers from ServerAvatar'); 
+          }
 
         $providers = collect($response->json('data'))
             ->mapWithKeys(function ($provider) {
@@ -837,8 +850,73 @@ $response = Http::withHeaders([
 
         return $providers;
     }
+    
+    */
 
+public function populateServerProviders(\App\Models\ServerControlPanel $controlPanel): array
+{
+   
+   /* $response = Http::withHeaders([
+        'Accept' => 'application/json',
+        'Authorization' => $controlPanel->getDecryptedApiToken()
+    ])->get("https://api.serveravatar.com/organizations/{$controlPanel->meta_data['organization']}/cloud-server-providers");*/
+ //HARD CODED ORGANIZATION ID FOR NOW.. WE WILL DO THE REST LATER
+ //dd($this,$this->client);
+ 
+ $this->organizationId = '2152';    
+ /*dd($this->client);
+     $response = $this->client->get("/organizations/{$this->organizationId}/cloud-server-providers", [
+        'pagination' => 1
+    ]);*/
+    
+    
+     /*$providers = $this->makeRequest(
+            'GET',
+            '/cloud-server-providers',
+            ['pagination' => 1]
+        );
 
+    if (!$response->successful()) {
+        throw new \Exception('Failed to fetch providers');
+    }
+
+    // Ensure proper array structure for mapWithKeys
+    return collect($response->json('data'))
+        ->mapWithKeys(function ($provider) {
+            // Make sure provider has both id and name
+            return [
+                $provider['id'] => [
+                    'name' => $provider['name'],
+                    'type' => $provider['type'] ?? null
+                ]
+            ];
+        })->toArray();*/
+        
+        
+        
+        
+        
+        
+        try {
+        // Use makeRequest method instead of direct client call
+        $providers = $this->makeRequest(
+            'GET',
+            '/cloud-server-providers',
+            ['pagination' => 1]
+        );
+
+        $controlPanel->update(['available_providers' => $providers]);
+dd($providers);
+        return $providers;
+
+    } catch (\Exception $e) {
+        \Log::error('Failed to fetch providers from ServerAvatar', [
+            'error' => $e->getMessage(),
+            'organization_id' => $this->organizationId
+        ]);
+        throw new \Exception('Failed to fetch providers: ' . $e->getMessage());
+    }
+}
 
 
 
