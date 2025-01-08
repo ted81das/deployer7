@@ -63,11 +63,43 @@ class ServerResource extends Resource
                                     'premium' => 'Premium'
                                 ])
                                 ->required(),
+                                
+                Forms\Components\Select::make('provider_id')
+    ->options(function (callable $get) {
+        $controlPanelId = $get('server_control_panel_id');
+        if (!$controlPanelId) {
+            return [];
+        }
+        
+        $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
+        if (!$controlPanel || empty($controlPanel->available_providers)) {
+            return [];
+        }
 
-                            Forms\Components\Select::make('provider_id')
+        // Convert available_providers array to options array
+        // Here we ensure the key (provider_id) is preserved exactly as it is
+        return collect($controlPanel->available_providers)
+            ->mapWithKeys(function ($name, $providerId) {
+                // Use the exact provider ID as both the key and value
+                return [(int)$providerId => "{$providerId}: {$name}"];
+            })
+            ->toArray();
+    })
+    ->visible(function (callable $get) {
+        $controlPanelId = $get('server_control_panel_id');
+        if (!$controlPanelId) {
+            return false;
+        }
+
+        $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
+        return $controlPanel && !empty($controlPanel->available_providers);
+    })
+    ->required(),
+
+                           /* Forms\Components\Select::make('provider_id')
                                 ->relationship('provider', 'name')
                                 ->visible(fn (callable $get) => filled($get('server_control_panel_id')))
-                                ->required(),
+                                ->required(),*/
                         ])
                         ->columns(2),
 
@@ -117,7 +149,7 @@ class ServerResource extends Resource
             ->actions([
                 Tables\Actions\Action::make('check_status')
                     ->label('Check Status')
-                    ->icon('heroicon-o-refresh')
+                    ->icon('heroicon-o-arrow-path')
                     ->visible(fn (Server $record) => $record->provisioning_status === 'pending')
                     ->action(fn (Server $record) => $record->checkServerStatus()),
 
@@ -153,4 +185,76 @@ class ServerResource extends Resource
        //     'manage' => Pages\ManageServer::route('/{record}/manage'),
         ];
     }
+    
+protected static function updateProviderOptions($controlPanelId, callable $set): void 
+{
+    if (!$controlPanelId) {
+        $set('provider_id', null);
+        return;
+    }
+
+    // Get the control panel
+    $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
+    
+    if (!$controlPanel || !$controlPanel->available_providers) {
+        $set('provider_id', null);
+        return;
+    }
+
+    // Reset the provider selection
+    $set('provider_id', null);
+
+    // Convert the providers to the correct format
+    // Since available_providers is in format {"584":"digitalocean","1489":"vultr",...}
+    $providers = collect($controlPanel->available_providers)
+        ->map(function ($name, $id) {
+            return [
+                'id' => $id,
+                'name' => $name
+            ];
+        })
+        ->pluck('name', 'id')
+        ->toArray();
+
+    // Set the new provider options
+    $set('provider_options', $providers);
+}
+
+  /*
+  
+    protected static function updateProviderOptions($controlPanelId, callable $set): void 
+{
+    if (!$controlPanelId) {
+        $set('provider_id', null);
+        return;
+    }
+
+    // Get the control panel and its available providers
+    $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
+    
+    if (!$controlPanel || !$controlPanel->available_providers) {
+        $set('provider_id', null);
+        return;
+    }
+
+    // Reset the provider selection since we're changing the available options
+    $set('provider_id', null);
+
+    // Update the provider options based on the selected control panel
+    $providers = collect($controlPanel->available_providers)->map(function ($provider) {
+        return [
+            'id' => $provider['id'],
+            'name' => $provider['name'] ?? $provider['id']
+        ];
+    })->pluck('name', 'id')->toArray();
+
+    // Set the new provider options
+    $set('provider_options', $providers);
+}
+    */
+    
+    
+    
+    
+    
 }

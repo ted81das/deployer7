@@ -84,10 +84,9 @@ class ServerControlPanelResource extends Resource
     ->action(function (ServerControlPanel $record) {
         try {
             $credentials = $record->getCredentials(); // Make sure this returns an array
-           // dd($credentials);
-           // Extract the api_token from credentials array
-            $apiToken = unserialize($credentials['api_token']);
+                       $apiToken = unserialize($credentials['api_token']);
              // Create service instance with proper parameters
+             //HERE SERVERAVATAR HAS BEEN HARD CODED THIS NEEDS TO BE CHANGED TO CONTROLPANELFACTORY BASED INSTANTIATION
             $service = new ServerAvatarService(
                 apiToken: $apiToken,
                 organizationId: '2152' // Or get from record if available
@@ -119,17 +118,38 @@ class ServerControlPanelResource extends Resource
                         $record->authentication_status !== 'authenticated')
                     ->action(function (ServerControlPanel $record) {
                         try {
-                            $serviceClass = "App\\Services\\ControlPanel\\" . 
-                                ucfirst($record->type) . "Service";
-                            $service = app($serviceClass);
                             
+                              $credentials = $record->getCredentials(); // Make sure this returns an array
+                       $apiToken = unserialize($credentials['api_token']);
+                     //  dd($apiToken);
+                       $service = app(ControlPanelServiceFactory::class)
+                            ->create($record->type, $apiToken);
+
+                        if ($service->authenticate()) {
+                            $record->update([
+                                'authentication_status' => 'authenticated',
+                                'last_authenticated_at' => now(),
+                                'authentication_error' => null
+                            ]);
+                            
+                           
+
+                            Notification::make()
+                                ->success()
+                                ->title('Authentication Successful')
+                                ->send();
+                       
+                        /*    $serviceClass = "App\\Services\\ControlPanel\\" . 
+                                                               ucfirst($record->type) . "Service";
+                            $service = app($serviceClass); 
                             if ($service->authenticateControlPanel($record)) {
                                 $record->update([
                                     'authentication_status' => 'authenticated',
                                     'last_authenticated_at' => now(),
                                     'authentication_error' => null
-                                ]);
+                                ]);*/
                             } else {
+                              
                                 throw new \Exception('Authentication failed');
                             }
                         } catch (\Exception $e) {

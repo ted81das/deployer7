@@ -26,7 +26,7 @@ class ControlPanelServiceFactory
 
         $serviceClass = self::SERVICE_MAP[$type];
         
-        dd($serviceClass($credentials));
+       // dd($serviceClass($credentials));
         return new $serviceClass($credentials); 
 
 

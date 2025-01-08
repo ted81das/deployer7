@@ -83,10 +83,10 @@ class Server extends Model
         return $this->hasMany(Application::class);
     }
 
-    public function provider()
+/*    public function provider()
     {
         return $this->belongsTo(ServerProvider::class);
-    }
+    }*/
 
     public function controlPanel()
     {

