@@ -38,6 +38,10 @@ class CreateServer extends CreateRecord
             'owner_user_id' => auth()->id(),
             'owner_email' => auth()->user()->email,
             'provider_id' => $providerId, 
+            'web_server' => $data['web_server'],
+            'database_type' => $data['database_type'],
+            'region' => $data['region'],
+            'plan' => $data['plan']
         ]);
     }
 

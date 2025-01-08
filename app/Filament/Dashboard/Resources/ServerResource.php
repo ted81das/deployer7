@@ -11,6 +11,8 @@ use Filament\Tables;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
+use App\Services\ControlPanel\ControlPanelServiceFactory;
+use Illuminate\Validation\Rules\Unique;
 
 class ServerResource extends Resource
 {
@@ -35,9 +37,11 @@ class ServerResource extends Resource
                                 ->afterStateUpdated(fn ($state, callable $set) => 
                                     static::updateProviderOptions($state, $set)),
 
-                            Forms\Components\TextInput::make('name')
-                                ->required()
-                                ->maxLength(255),
+        Forms\Components\TextInput::make('name')
+    ->required()
+    ->maxLength(12)
+    ->alphaNum()
+    ->unique(),
 
                             Forms\Components\TextInput::make('hostname')
                                 ->required()
@@ -94,7 +98,95 @@ class ServerResource extends Resource
         $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
         return $controlPanel && !empty($controlPanel->available_providers);
     })
-    ->required(),
+    ->required()
+    ->reactive() // Make sure this is here
+   ->afterStateUpdated(function (callable $set) {
+    $set('region', null);
+    $set('plan', null);
+}),  
+    
+    Forms\Components\Select::make('region')
+                            ->options(function (callable $get) {
+                                $controlPanelId = $get('server_control_panel_id');
+                                $providerId = $get('provider_id');
+                                
+                                if (!$controlPanelId || !$providerId) {
+                                    return [];
+                                }
+
+                                $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
+                                //dd($controlPanel);
+                                if (!$controlPanel) {
+                                  //dd('here no control panel');
+                                    return ['ERROR - NO CONTROL PANEL RETURNED EXCEPTION'];
+                                }
+
+                                try {
+                                    $credentials = $controlPanel->getCredentials();
+                                    $apiToken = unserialize($credentials['api_token']);
+                                   
+                                    $service = app(ControlPanelServiceFactory::class)->create($controlPanel->type, $apiToken);
+                                    //dd($service->getControlPanelRegions($providerId));
+                                    return $service->getControlPanelRegions($providerId);
+                                } catch (\Exception $e) {
+                                    //dd('here with exception');
+                                    return ['ERROR - NO REGION RETURNED EXCEPTION'];
+                                }
+                            })
+                            ->visible(function (callable $get) {
+                                return !empty($get('provider_id'));
+                            })
+                            ->reactive()
+                            ->afterStateUpdated(fn (callable $set) => $set('plan', null))
+                            ->required(),
+
+                        Forms\Components\Select::make('plan')
+                            ->options(function (callable $get) {
+                                $controlPanelId = $get('server_control_panel_id');
+                                $providerId = $get('provider_id');
+                                $region = $get('region');
+                                
+                                if (!$controlPanelId || !$providerId || !$region) {
+                                    return ['Not Available - Provider Id or Region'];
+                                }
+
+                                $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
+                                if (!$controlPanel) {
+                                    return ['Not Available - ControlPanel'];
+                                }
+
+                                //try {
+                                    $credentials = $controlPanel->getCredentials();
+                                    $apiToken = unserialize($credentials['api_token']);
+                                    $service = app(ControlPanelServiceFactory::class)->create($controlPanel->type, $apiToken);
+                                    
+                                    return $service->getControlPanelPlans($providerId, $region);
+                                /*} catch (\Exception $e) {
+                                     return [];
+                                } */
+                            })
+                            ->visible(function (callable $get) {
+                                return !empty($get('region'));
+                            })
+                            ->required(),
+    
+          Forms\Components\Select::make('web_server')
+                            ->options([
+                                'nginx' => 'Nginx',
+                                'apache2' => 'Apache',
+                                'openlitespeed' => 'LiteSpeed',
+                                'mern' => 'MERN'
+                            ])
+                            ->default('apache2')
+                           ->required(),
+
+                        Forms\Components\Select::make('database_type')
+                            ->options([
+                                'mariadb' => 'MariaDB',
+                                'mysql' => 'MySQL'
+                            ])
+                            ->default('mysql')
+                            ->required(),
 
                            /* Forms\Components\Select::make('provider_id')
                                 ->relationship('provider', 'name')
@@ -218,6 +310,45 @@ protected static function updateProviderOptions($controlPanelId, callable $set):
 
     // Set the new provider options
     $set('provider_options', $providers);
+}
+
+
+
+protected static function getRegionOptions($controlPanel, $providerId): array
+{
+    try {
+        $credentials = $controlPanel->getCredentials();
+        $apiToken = unserialize($credentials['api_token']);
+        $service = app(ControlPanelServiceFactory::class)->create($controlPanel->type, $apiToken);
+        
+        return $service->getControlPanelRegions($providerId);
+    } catch (\Exception $e) {
+        \Log::error('Failed to fetch regions', [
+            'error' => $e->getMessage(),
+            'control_panel' => $controlPanel->id,
+            'provider' => $providerId
+        ]);
+        return [];
+    }
+}
+
+protected static function getPlanOptions($controlPanel, $providerId, $region): array
+{
+    try {
+        $credentials = $controlPanel->getCredentials();
+        $apiToken = unserialize($credentials['api_token']);
+        $service = app(ControlPanelServiceFactory::class)->create($controlPanel->type, $apiToken);
+        
+        return $service->getControlPanelPlans($providerId, $region);
+    } catch (\Exception $e) {
+        \Log::error('Failed to fetch plans', [
+            'error' => $e->getMessage(),
+            'control_panel' => $controlPanel->id,
+            'provider' => $providerId,
+            'region' => $region
+        ]);
+        return [];
+    }
 }
 
   /*

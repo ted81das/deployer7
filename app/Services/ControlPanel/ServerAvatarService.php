@@ -254,9 +254,10 @@ $response = Http::withHeaders([
             'cloud_server_provider_id' => $data['provider_id'],
      //       'cloud_server_provider_id' => $this->getProviderServerId($data['mapped_plan']),
             'version' => 20, // Ubuntu version
-            'region' => $this->mapRegion($data['mapped_region']),
             'availabilityZone' => $this->getAvailabilityZone($data['mapped_region']),
-            'sizeSlug' => $this->getSizeSlug($data['mapped_plan']),
+            'sizeSlug' => $data['plan'],
+            'plan' => $data['plan'],
+            'region' => $data['region'],
             'ssh_key' =>  1, // Assuming this is a constant for now
             'public_key' => $data['server_sshkey_public'],
             'web_server' => $data['web_server'] ?? 'apache2',
@@ -270,34 +271,6 @@ $response = Http::withHeaders([
          //   'server_sshkey_private' => $data['server_sshkey_private']
         ];
     }
-
-    /**
-     * Create a new server instance
-     */
-   /* public function createServer(array $data): array
-    {
-        try {
-            // Transform server data
-            $serverData = $this->transformCreateServerData($data);
-            
-            // Create server via API
-            $response = $this->makeRequest('POST', '/servers', $serverData);
-            
-            return [
-                'server' => $this->transformServerResponse($response),
-                'credentials' => [
-                    'root_password' => $data['root_password'],
-                    'ssh_public_key' => $data['server_sshkey_pub']
-                ]
-            ];
-        } catch (\Exception $e) {
-            Log::error('Server creation failed', [
-                'data' => array_except($data, ['root_password']), // Don't log sensitive data
-                'error' => $e->getMessage()
-            ]);
-            throw new ServerProvisioningException("Failed to create server: {$e->getMessage()}");
-        }
-    }*/
 
      /**
      * Create server with SSH key generation
@@ -856,42 +829,6 @@ $response = Http::withHeaders([
 
 
 
-
-/*
-public function populateServerProviders(ServerControlPanel $controlPanel): array
-    {
-     
-$organizationId = '2152';  // This can be dynamic or stored in a config
-$response = Http::withHeaders([
-    'Accept' => 'application/json',
-    'Authorization' => $controlPanel->getDecryptedApiToken()
-])->get("https://api.serveravatar.com/organizations/{$organizationId}/cloud-server-providers", [
-    'pagination' => 1
-]);
-
-/*   $response = Http::withHeaders([
-            'Accept' => 'application/json',
-            'Authorization' => $controlPanel->getDecryptedApiToken()
-        ])->get("https://api.serveravatar.com/organizations/{$controlPanel->meta_data['organization']}/cloud-server-providers", [
-            'pagination' => 1
-        ]);*/
-
-    /*    if (!$response->successful()) {
-            throw new \Exception('Failed to fetch providers from ServerAvatar'); 
-          }
-
-        $providers = collect($response->json('data'))
-            ->mapWithKeys(function ($provider) {
-                return [$provider['id'] => $provider['name']];
-            })->toArray();
-
-        $controlPanel->update(['available_providers' => $providers]);
-
-        return $providers;
-    }
-    
-    */
-
 public function populateServerProviders(\App\Models\ServerControlPanel $controlPanel): array
 {
    
@@ -935,6 +872,61 @@ public function populateServerProviders(\App\Models\ServerControlPanel $controlP
 }
 
 
+
+//populate plan and region
+public function getControlPanelRegions(string $providerId): array
+{
+  
+// dd('reched here');
+    try {
+        $response = $this->makeRequest(
+            'GET',
+            "/cloud-server-providers/{$providerId}/regions"
+        );
+//dd($response);
+       return collect($response)->mapWithKeys(function ($region) {
+    return [$region['value'] => $region['name']];
+})->toArray();
+    
+       // dd($response,'  --AND --  ',$responseArray);
+    } catch (\Exception $e) { 
+          \Log::error('Failed to fetch ServerAvatar regions', [
+            'error' => $e->getMessage(),
+            'provider' => $providerId
+        ]);
+        return [];
+    }
+}
+
+public function getControlPanelPlans(string $providerId, string $region): array
+{
+   // try {
+        $response = $this->makeRequest(
+            'GET',
+            "/cloud-server-providers/{$providerId}/sizes",
+            ['region' => $region]
+        );
+
+    return collect($response['sizes'])->flatMap(function ($size) {
+    return collect($size['list'])->mapWithKeys(function ($item) {
+        return [
+            $item['slug'] => $item['name'] . ' : ' . 
+                            $item['ram_size_in_mb'] . ' : ' . 
+                            $item['cpu_core'] . ' : ' . 
+                            $item['price']
+        ];
+    });
+})->toArray();
+  /*  } catch (\Exception $e) {
+        \Log::error('Failed to fetch ServerAvatar plans', [
+            'error' => $e->getMessage(),
+            'provider' => $providerId,
+            'region' => $region
+        ]);
+        return [];
+    } 
+    */
+}
 
 
 

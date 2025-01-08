@@ -48,6 +48,9 @@ class Server extends Model
         'ssh_port',
         'provider_server_id',
         'provisioning_status',
+        'database_type',
+        'region',
+        'plan',
         'user_id'
     ];
 
@@ -69,8 +72,11 @@ class Server extends Model
     const STATUS_FAILED = 'failed';
 
     const WEBSERVER_NGINX = 'nginx';
-    const WEBSERVER_APACHE = 'apache';
-    const WEBSERVER_LITESPEED = 'litespeed';
+    const WEBSERVER_APACHE2 = 'apache2';
+    const WEBSERVER_OPENLITESPEED = 'openlitespeed';
+const WEBSERVER_NGINX_APACHE = 'nginx-apache';  // New constant
+    const WEBSERVER_MERN = 'mern';
+
 
     protected $hidden = [
         'root_password',
