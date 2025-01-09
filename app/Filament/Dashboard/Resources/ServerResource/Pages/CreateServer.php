@@ -88,10 +88,12 @@ class CreateServer extends CreateRecord
             'server_ip' => $apiResponse['ip_address'] ?? null,
             'server_ipv6' => $apiResponse['ipv6_address'] ?? null,
             'controlpanel_server_id' => $apiResponse['id'] ?? null,
-            'root_password' => encrypt($storedrootPassword),
+            'serveravatar_org_id' => $apiResponse['organization_id'] ?? null,
+            'root_password' => $serverData['linode_root_password'],
            // 'serveravatar_org_id' => $apiResponse['organization_id'] ?? null,
             'memory' => $apiResponse['memory'] ?? null,
             'cpu' => $apiResponse['cpu'] ?? null,
+            'provisioning_status' => 'provisioning',
         ]);
 
     } catch (\Exception $e) {

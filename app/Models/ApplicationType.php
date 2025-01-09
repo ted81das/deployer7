@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-
 class ApplicationType extends Model
 {
     use HasFactory, SoftDeletes;
@@ -17,10 +16,18 @@ class ApplicationType extends Model
         'description',
         'is_active',
         'is_global',
+        'is_git',
         'is_git_supported',
         'git_deployment_url',
+        'file_name',
+        'git_provider_id',
+        'repository',
+        'username',
+        'repository_name',
+        'branch',
         'default_branch',
         'deployment_script_template',
+        'deployment_script',
         'post_deployment_script',
         'environment_template',
         'required_php_extensions',
@@ -30,19 +37,28 @@ class ApplicationType extends Model
         'supported_databases',
         'default_web_server',
         'configuration_options',
+        'allowed_web_server_types',
         'user_id',
         'icon_path',
-        'documentation_url'
+        'documentation_url',
+        'template_id',
+        'cloudpanel_curl',
+        'is_cloud_curl_script',
+        'has_cli'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_global' => 'boolean',
+        'is_git' => 'boolean',
         'is_git_supported' => 'boolean',
+        'is_cloud_curl_script' => 'boolean',
+        'has_cli' => 'boolean',
         'required_php_extensions' => 'array',
         'required_dependencies' => 'array',
         'supported_databases' => 'array',
-        'configuration_options' => 'array'
+        'configuration_options' => 'array',
+        'allowed_web_server_types' => 'array'
     ];
 
     const TYPE_WORDPRESS = 'wordpress';
@@ -53,6 +69,10 @@ class ApplicationType extends Model
     const TYPE_BAGISTO = 'bagisto';
     const TYPE_CUSTOM = 'custom';
 
+    const WEB_SERVER_APACHE = 'apache';
+    const WEB_SERVER_NGINX = 'nginx';
+    const WEB_SERVER_LITESPEED = 'litespeed';
+
     public function applications()
     {
         return $this->hasMany(Application::class);
@@ -61,6 +81,11 @@ class ApplicationType extends Model
     public function templates()
     {
         return $this->hasMany(Template::class);
+    }
+
+    public function template()
+    {
+        return $this->belongsTo(Template::class);
     }
 
     public function supportedControlPanels()
@@ -74,5 +99,9 @@ class ApplicationType extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-}
 
+    public function gitProvider()
+    {
+        return $this->belongsTo(GitProvider::class);
+    }
+}

@@ -13,6 +13,11 @@ use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Services\ControlPanel\ControlPanelServiceFactory;
 use Illuminate\Validation\Rules\Unique;
+use Filament\Notifications\Notification;
+use App\Services\SSHConnectionService;
+use phpseclib3\Net\SSH2;
+use phpseclib3\Crypt\PublicKeyLoader;
+use Illuminate\Support\Facades\Crypt;
 
 class ServerResource extends Resource
 {
@@ -34,6 +39,7 @@ class ServerResource extends Resource
                                 })
                                 ->required()
                                 ->reactive()
+                                  ->disabled(fn ($livewire) => $livewire instanceof Pages\EditServer)
                                 ->afterStateUpdated(fn ($state, callable $set) => 
                                     static::updateProviderOptions($state, $set)),
 
@@ -41,6 +47,7 @@ class ServerResource extends Resource
     ->required()
     ->maxLength(12)
     ->alphaNum()
+      ->disabled(fn ($livewire) => $livewire instanceof Pages\EditServer)
     ->unique(),
 
                             Forms\Components\TextInput::make('hostname')
@@ -100,10 +107,53 @@ class ServerResource extends Resource
     })
     ->required()
     ->reactive() // Make sure this is here
-   ->afterStateUpdated(function (callable $set) {
-    $set('region', null);
-    $set('plan', null);
+      ->disabled(fn ($livewire) => $livewire instanceof Pages\EditServer)
+    ->afterStateUpdated(function ($state, callable $set) {
+        // Get the control panel and extract provider name
+        $controlPanelId = request()->get('server_control_panel_id');
+        if ($controlPanelId && $state) {
+            $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
+            if ($controlPanel && !empty($controlPanel->available_providers)) {
+                $providers = $controlPanel->available_providers;
+                $providerName = $providers[$state] ?? null;
+                if ($providerName) {
+                    $set('provider', strtolower($providerName));
+                }
+            }
+        }
+        $set('region', null);
+        $set('plan', null);
 }),  
+    
+    // Add this separate field for displaying the provider name
+Forms\Components\Select::make('provider')
+    ->options(function (callable $get) {
+        $providerId = $get('provider_id');
+        $controlPanelId = $get('server_control_panel_id');
+        
+        if (!$providerId || !$controlPanelId) {
+            return [];
+        }
+
+        $controlPanel = \App\Models\ServerControlPanel::find($controlPanelId);
+        if (!$controlPanel || empty($controlPanel->available_providers)) {
+            return [];
+        }
+
+        // Filter available_providers to only show the one matching provider_id
+        return collect($controlPanel->available_providers)
+            ->filter(function ($name, $id) use ($providerId) {
+                return (int)$id === (int)$providerId;
+            })
+            ->toArray();
+    })
+    ->visible(function (callable $get) {
+        return !empty($get('provider_id'));
+    })
+    ->required()
+      ->disabled(fn ($livewire) => $livewire instanceof Pages\EditServer)
+      ->reactive(),
+    
     
     Forms\Components\Select::make('region')
                             ->options(function (callable $get) {
@@ -138,6 +188,7 @@ class ServerResource extends Resource
                             })
                             ->reactive()
                             ->afterStateUpdated(fn (callable $set) => $set('plan', null))
+                              ->disabled(fn ($livewire) => $livewire instanceof Pages\EditServer)
                             ->required(),
 
                         Forms\Components\Select::make('plan')
@@ -168,6 +219,7 @@ class ServerResource extends Resource
                             ->visible(function (callable $get) {
                                 return !empty($get('region'));
                             })
+                              ->disabled(fn ($livewire) => $livewire instanceof Pages\EditServer)
                             ->required(),
     
           Forms\Components\Select::make('web_server')
@@ -186,6 +238,7 @@ class ServerResource extends Resource
                                 'mysql' => 'MySQL'
                             ])
                             ->default('mysql')
+                             ->disabled(fn ($livewire) => $livewire instanceof Pages\EditServer)
                             ->required(),
 
                            /* Forms\Components\Select::make('provider_id')
@@ -223,15 +276,16 @@ class ServerResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('controlPanel.name')
-                    ->label('Control Panel'),
+                    ->label('Panel'),
                 Tables\Columns\BadgeColumn::make('provisioning_status')
+                ->label('Available')
                     ->colors([
                         'danger' => 'failed',
                         'warning' => ['pending', 'provisioning'],
                         'success' => 'active',
                     ]),
                 Tables\Columns\BadgeColumn::make('server_status')
-                    ->label('Connection Status')
+                    ->label('Connection')
                     ->colors([
                         'danger' => 'failed',
                         'warning' => 'pending',
@@ -240,15 +294,113 @@ class ServerResource extends Resource
             ])
             ->actions([
                 Tables\Actions\Action::make('check_status')
-                    ->label('Check Status')
-                    ->icon('heroicon-o-arrow-path')
-                    ->visible(fn (Server $record) => $record->provisioning_status === 'pending')
-                    ->action(fn (Server $record) => $record->checkServerStatus()),
+                    ->label(fn (Server $record) => match($record->provisioning_status) {
+                    'pending' => 'Check Status (Pending)',
+                    'failed' => 'Check Status (Failed)',
+                    'provisioning' => 'Check Status (Provisioning)',
+                    default => 'Check Status'
+                })
+                ->icon('heroicon-o-arrow-path')
+                ->visible(fn (Server $record) => in_array($record->provisioning_status, [
+                    'pending',
+                    'failed',
+                    'provisioning'
+                ]))
+                ->action(function (Server $record) {
+                    try {
+                        // Get the control panel service
+                        $serviceFactory = app(ControlPanelServiceFactory::class);
+                        $controlPanel = $record->controlPanel;
+                        $credentials = $controlPanel->getCredentials();
+                        $apiToken = unserialize($credentials['api_token']);
+                        
+                        // Create service instance
+                        $service = $serviceFactory->create($controlPanel->type, $apiToken);
+                        
+                        // Get server details from API
+                        $serverDetails = $service->showServerStatus($record->controlpanel_server_id);
+                        
+                        // Check SSH status and update server accordingly
+                        if ($serverDetails['ssh_status'] === '1') {
+                            $record->update([
+                                'provisioning_status' => 'active',
+                                //'server_status' => 'active',
+                                'server_ip' => $serverDetails['ip']
+                            ]);
+                            
+                            Notification::make()
+                                ->success()
+                                ->title('Server '.$record->controlpanel_server_id.' is now active. Status '.$serverDetails['ssh_status'])
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->warning()
+                                ->title('Server '.$record->controlpanel_server_id.' is still provisioning. Status '.$serverDetails['ssh_status'])
+                                ->send();
+                        }
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Failed to check server status')
+                            ->body($e->getMessage())
+                            ->send();
+                    }
+                }),
+                    // Add Connect action
+            Tables\Actions\Action::make('connect')
+                ->label('Connect')
+                ->icon('heroicon-o-link')
+                ->visible(fn (Server $record): bool => 
+                    $record->provisioning_status === 'active' && 
+                    $record->server_status !== 'connected'
+                )
+                ->action(function (Server $record) {
+                   // try {
+                        $sshService = app(SSHConnectionService::class);
+                        
+                        // Get decrypted private key from database
+                      $privateKey = Crypt::decryptString($record->server_sshkey_private);
+                      //   $privateKey = $record->server_sshkey_private;
+                       $privateKeyMod = str_replace('\n', "\n", unserialize($privateKey));
+                       // Attempt SSH connection
+                        $ssh = new SSH2($record->server_ip);
+                       //  dd($privateKey);
+                        $key = PublicKeyLoader::load($privateKeyMod);
+                        
+                      //  dd($privateKey,$key);
+                        
+                        if (!$ssh->login('root', $key)) {
+                            throw new \Exception('SSH authentication failed');
+                        }
+
+                        // Disable password authentication
+                        $ssh->exec("sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config");
+                        $ssh->exec("systemctl restart sshd");
+
+                        // Update server status
+                        $record->update([
+                            'server_status' => 'connected'
+                        ]);
+
+                        Notification::make()
+                            ->success()
+                            ->title("Successfully connected to server {$record->controlpanel_server_id}")
+                            ->send();
+
+                  /*  } catch (\Exception $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title("Failed to connect to server {$record->controlpanel_server_id}")
+                            ->body($e->getMessage())
+                            ->send();
+                    } 
+                    */
+                }),
 
                 Tables\Actions\Action::make('create_application')
                     ->label('Create Application')
                     ->icon('heroicon-o-plus')
-                    ->url(fn (Server $record) => route('filament.resources.applications.create', ['server_id' => $record->id]))
+                    ->url(fn (Server $record) => route('filament.dashboard.resources.applications.create', ['server_id' => $record->id]))
                     ->visible(fn (Server $record) => $record->server_status === 'connected'),
 
                 Tables\Actions\Action::make('manage_server')
@@ -274,7 +426,7 @@ class ServerResource extends Resource
             'create' => Pages\CreateServer::route('/create'),
             'view' => Pages\ViewServer::route('/{record}'),
             'edit' => Pages\EditServer::route('/{record}/edit'),
-       //     'manage' => Pages\ManageServer::route('/{record}/manage'),
+            'manage' => Pages\ManageServer::route('/{record}/manage'),
         ];
     }
     

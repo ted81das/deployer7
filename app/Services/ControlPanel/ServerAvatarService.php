@@ -267,6 +267,7 @@ $response = Http::withHeaders([
             'mapped_plan' => $data['mapped_plan'],
             'mapped_region' => $data['mapped_region'],
             'server_sshkey_public' => $data['server_sshkey_public'],
+            "root_password_authentication" => 'no',
             'provider_id' => $data['provider_id']
          //   'server_sshkey_private' => $data['server_sshkey_private']
         ];
@@ -285,19 +286,29 @@ $response = Http::withHeaders([
                 //  dd($serverData);
             $response = $this->makeRequest('POST', '/servers', $serverData);
             
-           
-            
-            if (!$response->successful()) {
-                throw new ServerProvisioningException($response->body());
-            }
+                 // Check for required response structure
+        if (!isset($response['server']) || !isset($response['message'])) {
+            throw new ServerProvisioningException('Invalid response format from server');
+        }
 
-            $serverResponse = $response->json()['data'];
+        // Transform the server data from the response
+        $transformedResponse = [
+            'ip_address' => $response['server']['ip'] ?? null,
+            'ipv6_address' => null, // Add if available in response
+            'id' => (string)$response['server']['id'],
+            'organization_id' => $response['server']['organization_id'] ?? null,
+            'memory' => null, // Add if available in response
+            'cpu' => $response['server']['cores'] ?? null, // Add if available in response
+            'message' => $response['message'] // Include the message for notification
+        ];
+
+        return $transformedResponse;
             
             // Add SSH keys to the response for storage in server model
           //  $serverResponse['server_sshkey_pub'] = $sshKeyPair['public'];
           //  $serverResponse['server_sshkey_private'] = encrypt($sshKeyPair['private']);
 
-            return $this->transformServerResponse($serverResponse);
+           // return $this->transformServerResponse($serverResponse);
 
         } catch (\Exception $e) {
             Log::error('Server creation failed', [
@@ -311,8 +322,7 @@ $response = Http::withHeaders([
 
     /**
      * Map region to ServerAvatar region code
-     */
-    protected function mapRegion(string $region): string
+         protected function mapRegion(string $region): string
     {
         return match($region) {
             'us-east' => 'us-east',
@@ -325,7 +335,7 @@ $response = Http::withHeaders([
             'apac-southeast' => 'ap-southeast',
             default => 'us-east'
         };
-    }
+    } */
 
     /**
      * Get availability zone for region
@@ -361,7 +371,7 @@ $response = Http::withHeaders([
 
     /**
      * Get size slug based on plan
-     */
+     
     protected function getSizeSlug(string $plan): string
     {
         return match($plan) {
@@ -370,9 +380,8 @@ $response = Http::withHeaders([
             'premium' => 'g6-standard-4',
             default => 'g6-standard-1'
         };
-    }
-
-
+    } 
+*/
     
 // ... rest of the previous code remains same ...
 /*protected function transformServerResponse(array $response): array
@@ -401,6 +410,8 @@ $response = Http::withHeaders([
      */
     public function transformServerResponse(array $response): array
     {
+       // dd($response);
+        
         return [
             'server_ip' => $response['ipv4'] ?? null,
             'server_ipv6' => $response['ipv6'] ?? null,
@@ -410,8 +421,8 @@ $response = Http::withHeaders([
             'server_status' => $this->mapServerStatus($response['status']),
             'memory' => $response['specs']['memory'] ?? null,
             'cpu' => $response['specs']['vcpus'] ?? null,
-            'server_sshkey_public' => $response['server_sshkey_public'] ?? null,
-            'server_sshkey_private' => $response['server_sshkey_private'] ?? null,
+         //   'server_sshkey_public' => $response['server_sshkey_public'] ?? null,
+          //  'server_sshkey_private' => $response['server_sshkey_private'] ?? null,
             'provisioning_status' => $this->mapProvisioningStatus($response['status'])
         ];
     }
@@ -877,7 +888,7 @@ public function populateServerProviders(\App\Models\ServerControlPanel $controlP
 public function getControlPanelRegions(string $providerId): array
 {
   
-// dd('reched here');
+ //dd($providerId);
     try {
         $response = $this->makeRequest(
             'GET',
@@ -894,7 +905,7 @@ public function getControlPanelRegions(string $providerId): array
             'error' => $e->getMessage(),
             'provider' => $providerId
         ]);
-        return [];
+        return ['Response Error'];
     }
 }
 
@@ -927,6 +938,37 @@ public function getControlPanelPlans(string $providerId, string $region): array
     } 
     */
 }
+
+
+// In ServerAvatarService.php to get server details
+
+public function showServerStatus(string $serverId): array
+{
+    try {
+        $response = $this->makeRequest('GET', "/servers/{$serverId}");
+        
+        if (!isset($response['server'])) {
+            throw new ServerProvisioningException('Invalid response format from server');
+        }
+
+        $serverData = $response['server'];
+        
+        return [
+            'ssh_status' => $serverData['ssh_status'] ?? null,
+            'ip' => $serverData['ip'] ?? null,
+            'agent_status' => $serverData['agent_status'] ?? null,
+            'id' => $serverData['id'] ?? null
+        ];
+    } catch (\Exception $e) {
+        Log::error('Failed to fetch server details', [
+            'server_id' => $serverId,
+            'error' => $e->getMessage()
+        ]);
+        throw new ServerProvisioningException($e->getMessage());
+    }
+}
+
+
 
 
 

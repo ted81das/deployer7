@@ -78,17 +78,18 @@ class ManagedServerAppWow extends Model
     ];
 
     // Relationships
-  
+  /*
     public function sshKeys()
     {
         return $this->hasOne(SshKeyPair::class, 'application_user_id', 'application_user_id');
-    }
+    }*/
 
+/*
     public function commandLogs()
     {
         return $this->hasMany(WpCliCommandLog::class);
     }
-
+*/
     // Accessors & Mutators
     public function getPrivateKeyPathAttribute()
     {

@@ -45,6 +45,7 @@ class Server extends Model
         'mapped_region',
         'control_panel_type',
         'provider_id',
+        'provider',
         'ssh_port',
         'provider_server_id',
         'provisioning_status',
