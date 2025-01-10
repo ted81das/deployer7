@@ -3,7 +3,6 @@
 namespace App\Filament\Dashboard\Resources;
 
 use App\Filament\Dashboard\Resources\ApplicationResource\Pages;
-use App\Filament\Dashboard\Resources\ApplicationResource\RelationManagers;
 use App\Models\Application;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -11,379 +10,195 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Str;
 
 class ApplicationResource extends Resource
 {
     protected static ?string $model = Application::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('uuid')
-                    ->label('UUID')
-                    ->required()
-                    ->maxLength(36),
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('server_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('user_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('hostname')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('deployment_status')
-                    ->required()
-                    ->maxLength(255)
-                    ->default('pending'),
-                Forms\Components\TextInput::make('app_status')
-                    ->required()
-                    ->maxLength(255)
-                    ->default('pending'),
-                Forms\Components\TextInput::make('php_version')
-                    ->required(),
-                Forms\Components\TextInput::make('web_server')
-                    ->required(),
-                Forms\Components\TextInput::make('web_root')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('application_home_directory')
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('application_sshkey_private')
-                    ->columnSpanFull(),
-                Forms\Components\Textarea::make('application_sshkey_pub')
-                    ->columnSpanFull(),
-                Forms\Components\Textarea::make('deploy_key')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('database_type')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('database_name')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('database_user')
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('database_password')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('database_host')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('database_port')
-                    ->numeric(),
-                Forms\Components\TextInput::make('git_repository')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('git_branch')
-                    ->required()
-                    ->maxLength(255)
-                    ->default('main'),
-                Forms\Components\TextInput::make('git_provider')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('installation_path')
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('environment_file')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('ssl_status')
-                    ->maxLength(255),
-                Forms\Components\DateTimePicker::make('last_deployed_at'),
-                Forms\Components\TextInput::make('controlpanel_app_id')
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('deployment_script')
-                    ->columnSpanFull(),
-                Forms\Components\Textarea::make('post_deployment_script')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('provisioning_retries')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                Forms\Components\TextInput::make('admin_user')
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('admin_password')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('admin_email')
-                    ->email()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('pm_type')
-                    ->required(),
-                Forms\Components\TextInput::make('pm_max_children')
-                    ->required()
-                    ->numeric()
-                    ->default(20),
-                Forms\Components\TextInput::make('pm_start_servers')
-                    ->required()
-                    ->numeric()
-                    ->default(2),
-                Forms\Components\TextInput::make('pm_min_spare_servers')
-                    ->required()
-                    ->numeric()
-                    ->default(1),
-                Forms\Components\TextInput::make('pm_max_spare_servers')
-                    ->required()
-                    ->numeric()
-                    ->default(3),
-                Forms\Components\TextInput::make('pm_process_idle_timeout')
-                    ->required()
-                    ->numeric()
-                    ->default(30),
-                Forms\Components\TextInput::make('pm_max_requests')
-                    ->required()
-                    ->numeric()
-                    ->default(500),
-                Forms\Components\TextInput::make('pm_max_spawn_rate')
-                    ->required()
-                    ->numeric()
-                    ->default(1),
-                Forms\Components\TextInput::make('max_execution_time')
-                    ->required()
-                    ->numeric()
-                    ->default(60),
-                Forms\Components\TextInput::make('max_input_time')
-                    ->required()
-                    ->numeric()
-                    ->default(60),
-                Forms\Components\TextInput::make('max_input_vars')
-                    ->required()
-                    ->numeric()
-                    ->default(1600),
-                Forms\Components\TextInput::make('memory_limit')
-                    ->required()
-                    ->maxLength(255)
-                    ->default('256M'),
-                Forms\Components\TextInput::make('post_max_size')
-                    ->required()
-                    ->maxLength(255)
-                    ->default('128M'),
-                Forms\Components\TextInput::make('upload_max_filesize')
-                    ->required()
-                    ->maxLength(255)
-                    ->default('128M'),
-                Forms\Components\Textarea::make('disabled_functions')
-                    ->columnSpanFull(),
-                Forms\Components\Textarea::make('open_basedir')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('auto_prepend_file')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('php_timezone')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('ssl'),
-                Forms\Components\Toggle::make('wildcard')
-                    ->required(),
-                Forms\Components\Textarea::make('key')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('size')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                Forms\Components\TextInput::make('domain')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('domain_status')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('domain_verification_method')
-                    ->maxLength(255),
-                Forms\Components\DateTimePicker::make('domain_verified_at'),
-                Forms\Components\TextInput::make('domain_aliases'),
-                Forms\Components\TextInput::make('health_check_status')
-                    ->maxLength(255),
-                Forms\Components\DateTimePicker::make('last_health_check_at'),
-                Forms\Components\TextInput::make('resource_usage'),
-                Forms\Components\TextInput::make('disk_usage')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                Forms\Components\DateTimePicker::make('last_resource_check_at'),
-                Forms\Components\DateTimePicker::make('last_backup_at'),
-                Forms\Components\TextInput::make('backup_status')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('backup_retention_days')
-                    ->required()
-                    ->numeric()
-                    ->default(7),
-                Forms\Components\Toggle::make('maintenance_mode')
-                    ->required(),
-                Forms\Components\DateTimePicker::make('scheduled_maintenance_at'),
-                Forms\Components\DateTimePicker::make('last_maintenance_at'),
-                Forms\Components\TextInput::make('log_retention_days')
-                    ->required()
-                    ->numeric()
-                    ->default(7),
-                Forms\Components\Toggle::make('monitoring_enabled')
-                    ->required(),
-                Forms\Components\TextInput::make('alert_settings'),
-                Forms\Components\Textarea::make('last_error_log')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('settings'),
-                Forms\Components\TextInput::make('meta_data'),
-            ]);
+        return $form->schema([
+            Forms\Components\Group::make()
+                ->schema([
+                    Forms\Components\Section::make('Basic Information')
+                        ->schema([
+                            Forms\Components\Select::make('mapped_region')
+                                ->options([
+                                    'us-east' => 'US - East',
+                                    'us-west' => 'US - West',
+                                    'us-central' => 'US - Central',
+                                    'eu-central' => 'EU - Central',
+                                    'eu-west' => 'EU - West',
+                                    'apac-east' => 'APAC - East',
+                                    'apac-middle' => 'APAC - Middle',
+                                    'apac-southeast' => 'APAC - Southeast'
+                                ])
+                                ->required()
+                                ->reactive(),
+
+                            Forms\Components\Select::make('mapped_plan')
+                                ->options([
+                                    'starter' => 'Starter',
+                                    'advanced' => 'Advanced',
+                                    'premium' => 'Premium'
+                                ])
+                                ->required()
+                                ->reactive(),
+
+                            Forms\Components\Select::make('server_id')
+                                ->label('Server')
+                                ->options(function (callable $get) {
+                                    return \App\Models\Server::query()
+                                        ->where('mapped_region', $get('mapped_region'))
+                                        ->where('mapped_plan', $get('mapped_plan'))
+                                        ->where(function (Builder $query) {
+                                            $query->where('user_id', auth()->id())
+                                                ->orWhere('owned_by', auth()->id());
+                                        })
+                                        ->pluck('name', 'id');
+                                })
+                                ->required()
+                                ->searchable()
+                                ->reactive(),
+
+                            Forms\Components\TextInput::make('name')
+                                ->required()
+                                ->maxLength(255),
+
+                            Forms\Components\TextInput::make('hostname')
+                                ->required()
+                                ->maxLength(255),
+
+                            Forms\Components\Select::make('php_version')
+                                ->options([
+                                    '8.3' => 'PHP 8.3',
+                                    '8.2' => 'PHP 8.2',
+                                    '8.1' => 'PHP 8.1',
+                                    '7.4' => 'PHP 7.4',
+                                ])
+                                ->required(),
+
+                            Forms\Components\Select::make('web_server')
+                                ->options([
+                                    'apache' => 'Apache',
+                                    'nginx' => 'Nginx',
+                                    'litespeed' => 'LiteSpeed',
+                                ])
+                                ->required(),
+                        ])->columns(2),
+
+                    Forms\Components\Section::make('Admin Credentials')
+                        ->schema([
+                            Forms\Components\TextInput::make('admin_user')
+                                ->maxLength(255),
+                            
+                            Forms\Components\TextInput::make('admin_password')
+                                ->password()
+                                ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : null),
+                            
+                            Forms\Components\TextInput::make('admin_email')
+                                ->email()
+                                ->maxLength(255),
+                        ])->columns(2),
+
+                    Forms\Components\Section::make('Database Configuration')
+                        ->schema([
+                            Forms\Components\Toggle::make('is_existing_database')
+                                ->label('Use Existing Database')
+                                ->reactive(),
+
+                            Forms\Components\Toggle::make('generate_random_dbcredential')
+                                ->label('Generate Random Credentials')
+                                ->reactive()
+                                ->visible(fn (callable $get) => !$get('is_existing_database')),
+
+                            Forms\Components\TextInput::make('database_name')
+                                ->maxLength(255)
+                                ->visible(fn (callable $get) => $get('is_existing_database')),
+
+                            Forms\Components\TextInput::make('database_user')
+                                ->maxLength(255)
+                                ->visible(fn (callable $get) => $get('is_existing_database')),
+
+                            Forms\Components\TextInput::make('database_password')
+                                ->password()
+                                ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : null)
+                                ->visible(fn (callable $get) => $get('is_existing_database')),
+
+                            Forms\Components\TextInput::make('database_host')
+                                ->maxLength(255)
+                                ->visible(fn (callable $get) => $get('is_existing_database')),
+                        ])->columns(2),
+
+                    Forms\Components\Section::make('Git Configuration')
+                        ->schema([
+                            Forms\Components\TextInput::make('git_repository')
+                                ->maxLength(255),
+                            
+                            Forms\Components\TextInput::make('git_branch')
+                                ->maxLength(255)
+                                ->default('main'),
+                            
+                            Forms\Components\TextInput::make('git_provider')
+                                ->maxLength(255),
+                        ])->columns(2),
+
+                    Forms\Components\Section::make('PHP-FPM Configuration')
+                        ->schema([
+                            Forms\Components\Select::make('pm_type')
+                                ->options([
+                                    'ondemand' => 'On Demand',
+                                    'dynamic' => 'Dynamic',
+                                    'static' => 'Static',
+                                ])
+                                ->required(),
+
+                            Forms\Components\TextInput::make('pm_max_children')
+                                ->numeric()
+                                ->default(20)
+                                ->required(),
+
+                            // Add other PHP-FPM configuration fields...
+                            // Similar pattern for remaining fields
+                        ])->columns(2),
+                ]),
+        ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('uuid')
-                    ->label('UUID')
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('server_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('user_id')
-                    ->numeric()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('hostname')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('server.name')
+                    ->searchable(),
+                Tables\Columns\BadgeColumn::make('deployment_status')
+                    ->colors([
+                        'danger' => 'failed',
+                        'warning' => 'pending',
+                        'success' => 'deployed',
+                    ]),
+                Tables\Columns\BadgeColumn::make('app_status')
+                    ->colors([
+                        'danger' => ['failed', 'connection_failed'],
+                        'warning' => 'pending',
+                        'success' => 'connected',
+                    ]),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('deployment_status')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('app_status')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('php_version'),
-                Tables\Columns\TextColumn::make('web_server'),
-                Tables\Columns\TextColumn::make('web_root')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('application_home_directory')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('database_type')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('database_name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('database_user')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('database_host')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('database_port')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('git_repository')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('git_branch')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('git_provider')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('installation_path')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('ssl_status')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('last_deployed_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('controlpanel_app_id')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('provisioning_retries')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('admin_user')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('admin_email')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('pm_type'),
-                Tables\Columns\TextColumn::make('pm_max_children')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('pm_start_servers')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('pm_min_spare_servers')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('pm_max_spare_servers')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('pm_process_idle_timeout')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('pm_max_requests')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('pm_max_spawn_rate')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('max_execution_time')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('max_input_time')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('max_input_vars')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('memory_limit')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('post_max_size')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('upload_max_filesize')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('auto_prepend_file')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('php_timezone')
-                    ->searchable(),
-                Tables\Columns\IconColumn::make('wildcard')
-                    ->boolean(),
-                Tables\Columns\TextColumn::make('size')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('domain')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('domain_status')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('domain_verification_method')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('domain_verified_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('health_check_status')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('last_health_check_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('disk_usage')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('last_resource_check_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('last_backup_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('backup_status')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('backup_retention_days')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\IconColumn::make('maintenance_mode')
-                    ->boolean(),
-                Tables\Columns\TextColumn::make('scheduled_maintenance_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('last_maintenance_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('log_retention_days')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\IconColumn::make('monitoring_enabled')
-                    ->boolean(),
-                Tables\Columns\TextColumn::make('deleted_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->dateTime(),
             ])
             ->filters([
                 //
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (Application $record) => $record->app_status === 'connected'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

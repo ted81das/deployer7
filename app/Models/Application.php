@@ -51,7 +51,7 @@ class Application extends Model
         'database_port',
 
         // Template Configuration
-        'template_id',
+       // 'template_id',
         'is_template',
 
         // Deployment Information
@@ -159,7 +159,7 @@ class Application extends Model
         'alert_settings' => 'array',
 
         // Booleans
-        'is_template' => 'boolean',
+//        'is_template' => 'boolean',
         'wildcard' => 'boolean',
         'maintenance_mode' => 'boolean',
         'monitoring_enabled' => 'boolean',

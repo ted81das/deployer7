@@ -285,6 +285,12 @@ class ApplicationType extends Model
             ->withTimestamps();
     }
 
+ public function controlPanel()
+    {
+        return $this->belongsTo(ServerControlPanel::class, 'server_control_panel_id');
+    }
+
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -356,4 +362,3 @@ return new class extends Migration
         Schema::dropIfExists('application_types');
     }
 };
-
