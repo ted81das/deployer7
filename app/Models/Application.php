@@ -20,7 +20,10 @@ class Application extends Model
         'user_id',
         'domain',
         'web_root',
-
+        'system_user',
+         'system_user_password',
+        'home_directory',
+        'web_root',
         // Git Repository Management
         'git_type',
         'git_provider_id',
@@ -188,6 +191,7 @@ class Application extends Model
         'admin_password' => 'encrypted',
         'git_token' => 'encrypted',
         'key' => 'encrypted',
+ 'system_user_password' => 'encrypted',
 
         // Enums
         'git_type' => 'string',
@@ -201,6 +205,7 @@ class Application extends Model
         'application_sshkey_private',
         'database_password',
         'admin_password',
+'system_user_password',
         'git_token',
         'key'
     ];

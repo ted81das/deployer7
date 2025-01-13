@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "67a8e984a4c09b52ab3829bb8a93345e",
+    "content-hash": "382ca91fe972e2404d85e7d597b43e8f",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -3709,6 +3709,80 @@
             "time": "2024-07-23T00:53:49+00:00"
         },
         {
+            "name": "laravel/forge-sdk",
+            "version": "v3.21.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel/forge-sdk.git",
+                "reference": "0fef1e86733abade2713e51639fcd1fec9279975"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel/forge-sdk/zipball/0fef1e86733abade2713e51639fcd1fec9279975",
+                "reference": "0fef1e86733abade2713e51639fcd1fec9279975",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^6.3.1|^7.0",
+                "php": "^7.2|^8.0"
+            },
+            "require-dev": {
+                "illuminate/support": "^7.0|^8.0|^9.0|^10.0|^11.0",
+                "mockery/mockery": "^1.3.1",
+                "phpstan/phpstan": "^1.10",
+                "phpunit/phpunit": "^8.4|^9.0|^10.4"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Laravel\\Forge\\ForgeServiceProvider"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-master": "3.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Laravel\\Forge\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taylor Otwell",
+                    "email": "taylor@laravel.com"
+                },
+                {
+                    "name": "Mohamed Said",
+                    "email": "mohamed@laravel.com"
+                },
+                {
+                    "name": "Dries Vints",
+                    "email": "dries@laravel.com"
+                },
+                {
+                    "name": "James Brooks",
+                    "email": "james@laravel.com"
+                }
+            ],
+            "description": "The official Laravel Forge PHP SDK.",
+            "keywords": [
+                "forge",
+                "laravel"
+            ],
+            "support": {
+                "issues": "https://github.com/laravel/forge-sdk/issues",
+                "source": "https://github.com/laravel/forge-sdk"
+            },
+            "time": "2025-01-08T08:18:06+00:00"
+        },
+        {
             "name": "laravel/framework",
             "version": "v11.36.1",
             "source": {
@@ -6660,6 +6734,58 @@
                 }
             ],
             "time": "2024-12-14T21:12:59+00:00"
+        },
+        {
+            "name": "ploi/ploi-php-sdk",
+            "version": "1.9.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ploi/ploi-php-sdk.git",
+                "reference": "9a6d79d199948d2bb30623a8f280981e1fec140a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ploi/ploi-php-sdk/zipball/9a6d79d199948d2bb30623a8f280981e1fec140a",
+                "reference": "9a6d79d199948d2bb30623a8f280981e1fec140a",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^7.0.1",
+                "php": ">=7.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9",
+                "psy/psysh": "@stable",
+                "squizlabs/php_codesniffer": "3.*",
+                "vlucas/phpdotenv": "^5.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "Ploi": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Dennis Smink",
+                    "email": "info@ploi.io"
+                },
+                {
+                    "name": "Simon White",
+                    "email": "simondotwhite@gmail.com"
+                }
+            ],
+            "description": "Ploi.io for easy site deployments",
+            "support": {
+                "issues": "https://github.com/ploi/ploi-php-sdk/issues",
+                "source": "https://github.com/ploi/ploi-php-sdk/tree/1.9.2"
+            },
+            "time": "2023-04-11T08:49:05+00:00"
         },
         {
             "name": "pragmarx/google2fa",

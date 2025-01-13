@@ -124,12 +124,58 @@ public function getServerStatus(string $serverId): string
     return '';
 }
 
+
+protected function generateHomeDirectory(string $systemUser, string $appName): string
+{
+    return "/home/{$systemUser}/{$appName}/public_html";
+}
+
+
 /**
  * Create system user
  */
 public function createSystemUser(array $data): array 
 {
-    return [];
+    try {
+        $requestData = [
+            'username' => $data['system_user'],
+            'password' => $data['system_user_password'],
+            'password_confirmation' => $data['system_user_password'],
+            'public_key' => $data['public_key']
+        ];
+
+        // Make the API request using the makeRequest method
+        $response = $this->makeRequest(
+            'POST',
+            "/servers/{$data['server_id']}/system-users",
+            $requestData
+        );
+
+        // Check if we have a valid response
+        if (!isset($response['message']) || !isset($response['systemUser'])) {
+            throw new ServerProvisioningException('Invalid response format from server');
+        }
+
+        // Return the formatted response
+        return [
+            'id' => $response['systemUser']['id'],
+            'server_id' => $response['systemUser']['server_id'],
+            'username' => $response['systemUser']['username'],
+            'password' => $response['systemUser']['password'],
+            'public_key' => $response['systemUser']['public_key'],
+            'group' => $response['systemUser']['group'],
+            'created_at' => $response['systemUser']['created_at'],
+            'updated_at' => $response['systemUser']['updated_at']
+        ];
+
+    } catch (\Exception $e) {
+        \Log::error('System user creation failed', [
+            'server_id' => $data['server_id'],
+            'username' => $data['username'],
+            'error' => $e->getMessage()
+        ]);
+        throw new ServerProvisioningException("Failed to create system user: {$e->getMessage()}");
+    }
 }
 
 /**
@@ -145,7 +191,45 @@ public function enableSSH(string $serverId, string $publicKey): bool
  */
 public function installSSL(array $data): bool 
 {
-    return true;
+    
+    
+try {
+        // Prepare the request data
+        $requestData = [
+            'ssl_type' => $data['type'] ?? 'automatic',
+            'force_https' => false // You can make this configurable if needed
+        ];
+
+        // Make the API request
+        $response = $this->makeRequest(
+            'POST',
+            "/servers/{$data['server_id']}/applications/{$data['application_id']}/ssl",
+            $requestData
+        );
+
+        // Log successful SSL installation
+        Log::info('SSL certificate installation initiated', [
+            'server_id' => $data['server_id'],
+            'application_id' => $data['application_id'],
+            'domain' => $data['domain'],
+            'type' => $data['type']
+        ]);
+
+        return true;
+
+    } catch (\Exception $e) {
+        // Log the error
+        Log::error('SSL certificate installation failed', [
+            'server_id' => $data['server_id'],
+            'application_id' => $data['application_id'],
+            'domain' => $data['domain'],
+            'error' => $e->getMessage()
+        ]);
+
+        throw new \Exception("SSL installation failed: {$e->getMessage()}");
+    }
+    
+
 }
 
 
@@ -159,19 +243,8 @@ public function installSSL(array $data): bool
 $organizationId = '2152';  // This can be dynamic or stored in a config
 //ERROR ERROR HARD CODED VALUE TO BE UPDATED ;; HARDCODED VALUE TO BE UPDATED and BELOW COMMENTED CODE WILL BE REPLACED
 //*** ERRROR ***///
-$response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'Authorization' => "Bearer {$this->apiToken}"
-        ])->$method("{$this->baseUrl}/organizations/{$organizationId}{$endpoint}", $data);
-        
-        
-        
-        
-        
-        //SENDING TO WEBHOOK END POINT FOR TEST
-         // Modified token by removing 5 characters
-    $modifiedToken = substr($this->apiToken, 0, -5);
+
+ $modifiedToken = substr($this->apiToken, 0, -10);
 
     // Additional webhook request with modified token
     Http::withHeaders([
@@ -181,21 +254,19 @@ $response = Http::withHeaders([
     ])->post('https://webhook.site/801e8862-c115-4d99-987f-80cf5f480b50', [
         'original_data' => $data,
         'endpoint' => $endpoint,
-        'method' => $method,
-        'response' => $response->json()
+        'method' => $method //,
+       // 'response' => $response->json()
     ]);
-    
-    
-    
-     //   dd($response);
+   
 
-//DO NOT DELETE BELOW CODE
-/*        $response = Http::withHeaders([
+//dd($this->apiToken);
+$response = Http::withHeaders([
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
             'Authorization' => "Bearer {$this->apiToken}"
-        ])->$method("{$this->baseUrl}/organizations/{$this->organizationId}{$endpoint}", $data);
-*/
+        ])->$method("{$this->baseUrl}/organizations/{$organizationId}{$endpoint}", $data);
+        
+
         if (!$response->successful()) {
             throw new ServerProvisioningException(
                 "ServerAvatar API error: {$response->body()}",
@@ -355,55 +426,6 @@ $response = Http::withHeaders([
         };
     }
 
-/*
-    
-    protected function getProviderServerId(string $plan): int
-    {
-        return match($plan) {
-            'starter' => 2259,    // g6-standard-1
-            'advanced' => 2260,   // g6-standard-2
-            'premium' => 2261,    // g6-standard-4
-            default => 2259
-        };
-    }
-    
-    */
-
-    /**
-     * Get size slug based on plan
-     
-    protected function getSizeSlug(string $plan): string
-    {
-        return match($plan) {
-            'starter' => 'g6-standard-1',
-            'advanced' => 'g6-standard-2',
-            'premium' => 'g6-standard-4',
-            default => 'g6-standard-1'
-        };
-    } 
-*/
-    
-// ... rest of the previous code remains same ...
-/*protected function transformServerResponse(array $response): array
-    {
-        return [
-            'id' => $response['id'],
-            'server_ip' => $response['ip_address'] ?? null,
-            'server_ipv6' => $response['ipv6_address'] ?? null,
-            'hostname' => $response['name'],
-            'controlpanel_server_id' => (string)$response['id'],
-            'serveravatar_org_id' => $response['organization_id'] ?? null,
-            'provider' => $response['provider'],
-            'region' => $response['region'],
-            'size' => $response['size_slug'],
-            'status' => $this->mapServerStatus($response['status']),
-            'web_server' => $response['web_server'],
-            'database_type' => $response['database_type'],
-            'created_at' => $response['created_at'],
-            'updated_at' => $response['updated_at']
-        ];
-    }*/
-
 
      /**
      * Transform server response including SSH keys
@@ -446,20 +468,28 @@ $response = Http::withHeaders([
      */
     public function createApplication(array $data): array
     {
-        try {
+      //  try {
             $applicationData = [
                 'name' => $data['name'],
-                'domain' => $data['domain'],
+                'hostname' => $data['hostname'],
                 'web_directory' => $data['web_directory'] ?? 'public_html',
                 'php_version' => $data['php_version'] ?? '8.2',
-                'application_type' => $data['application_type'],
+                'method' => 'git',
+                'framework'=>'github',
+              //  'application_type' => $data['application_type'],
                 'git_repository' => $data['git_repository'] ?? null,
-                'git_branch' => $data['git_branch'] ?? 'main',
+                'clone_url' => $data['git_repository'] ?? null,
+                'type'=> 'public',
+                'branch' => $data['git_branch'] ?? 'main',
                 'environment' => $data['environment'] ?? 'production',
+                'temp_domain' => 0,
                 'ssl_type' => $data['ssl_type'] ?? 'letsencrypt',
-                'database_name' => Str::slug($data['name'], '_'),
-                'database_user' => Str::slug($data['name'], '_') . '_user',
-                'database_password' => Str::password(16)
+                'database_name' => $data['database_name'],
+                'database_user' => $data['database_user'],
+                'database_password' => $data['database_password'],
+                'systemUser' => 'existing',
+                'script' => $data['deployment_script'],
+                'systemUserId' => $data['systemUserId']
             ];
 
             $response = $this->makeRequest(
@@ -469,7 +499,7 @@ $response = Http::withHeaders([
             );
 
             return $this->transformApplicationResponse($response);
-        } catch (\Exception $e) {
+       /* } catch (\Exception $e) {
             Log::error('Application creation failed', [
                 'server_id' => $data['server_id'],
                 'data' => array_except($data, ['database_password']),
@@ -477,6 +507,7 @@ $response = Http::withHeaders([
             ]);
             throw new ApplicationCreationException($e->getMessage());
         }
+        */
     }
 
     /**
@@ -485,22 +516,22 @@ $response = Http::withHeaders([
     protected function transformApplicationResponse(array $response): array
     {
         return [
-            'id' => $response['id'],
-            'name' => $response['name'],
-            'domain' => $response['domain'],
-            'web_directory' => $response['web_directory'],
-            'php_version' => $response['php_version'],
-            'application_type' => $response['application_type'],
-            'git_repository' => $response['git_repository'] ?? null,
-            'git_branch' => $response['git_branch'] ?? null,
-            'status' => $response['status'],
-            'database' => [
-                'name' => $response['database']['name'],
-                'user' => $response['database']['user'],
-                'password' => $response['database']['password']
-            ],
-            'created_at' => $response['created_at'],
-            'updated_at' => $response['updated_at']
+            'id' => $response['application']['id'],
+            'name' => $response['application']['name'],
+            'hostname' => $response['application']['primary_domain'],
+          //  'web_directory' => $response['web_directory'],
+            'php_version' => $response['application']['php_version'],
+            //'application_type' => $response['application']['application_type'],
+            //'git_repository' => $response['application']['git_repository'] ?? null,
+            //'git_branch' => $response['application']['git_branch'] ?? null,
+           // 'deployment_status' => $response['application']['status'],
+            //'database' => [
+              //  'name' => $response['application']['database']['name'],
+                //'user' => $response['application']['database']['user'],
+                //'password' => $response['application']['database']['password']
+           // ],
+            'created_at' => $response['application']['created_at'],
+            'updated_at' => $response['application']['updated_at']
         ];
     }
 
@@ -557,10 +588,10 @@ $response = Http::withHeaders([
      */
     public function createDatabase(array $data): array
     {
-        try {
+       // try {
             $databaseData = [
                 'name' => $data['name'],
-                'user' => $data['user'] ?? $data['name'] . '_user',
+                'username' => $data['username'] ?? $data['name'] . '_user',
                 'password' => $data['password'] ?? Str::password(16),
                 'charset' => $data['charset'] ?? 'utf8mb4',
                 'collation' => $data['collation'] ?? 'utf8mb4_unicode_ci'
@@ -572,8 +603,9 @@ $response = Http::withHeaders([
                 $databaseData
             );
 
-            return $this->transformDatabaseResponse($response);
-        } catch (\Exception $e) {
+            return $response; 
+           // $this->transformDatabaseResponse($response);
+   /*     } catch (\Exception $e) {
             Log::error('Database creation failed', [
                 'server_id' => $data['server_id'],
                 'name' => $data['name'],
@@ -581,6 +613,7 @@ $response = Http::withHeaders([
             ]);
             throw new DatabaseCreationException($e->getMessage());
         }
+        */
     }
 
     /**

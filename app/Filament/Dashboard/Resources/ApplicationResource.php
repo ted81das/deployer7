@@ -4,6 +4,7 @@ namespace App\Filament\Dashboard\Resources;
 
 use App\Filament\Dashboard\Resources\ApplicationResource\Pages;
 use App\Models\Application;
+use App\Models\Server;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -11,6 +12,11 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
+use App\Services\SSHConnectionService;
+use Filament\Notifications\Notification;
+use phpseclib3\Net\SSH2;
+use phpseclib3\Crypt\PublicKeyLoader;
+use Illuminate\Support\Facades\Crypt;
 
 class ApplicationResource extends Resource
 {
@@ -102,6 +108,27 @@ class ApplicationResource extends Resource
                                 ->email()
                                 ->maxLength(255),
                         ])->columns(2),
+                        
+                        Forms\Components\Section::make('System User Configuration')
+    ->schema([
+        Forms\Components\TextInput::make('system_user')
+            ->required()
+            ->default(fn () => Str::lower(Str::random(10)))
+            ->helperText('System username (10 characters)')
+            ->maxLength(255),
+        
+        Forms\Components\TextInput::make('system_user_password')
+            ->required()
+            ->default(fn () => Str::lower(Str::random(12)))
+            ->password()
+            ->helperText('System user password (12 characters)')
+            ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : null),
+            
+        Forms\Components\TextInput::make('web_root')
+            ->default('/public_html')
+            ->helperText('Web root directory like public for laravel')
+            ->maxLength(255),
+    ])->columns(2),
 
                     Forms\Components\Section::make('Database Configuration')
                         ->schema([
@@ -195,7 +222,126 @@ class ApplicationResource extends Resource
             ->filters([
                 //
             ])
+            
             ->actions([
+            // Manage App - only when deployment complete and app connected
+            Tables\Actions\Action::make('manage')
+                ->label('Manage App')
+                ->icon('heroicon-o-cog')
+                ->url(fn (Application $record) => route('filament.dashboard.resources.applications.manage', $record))
+                ->visible(fn (Application $record) => 
+                    $record->deployment_status === 'complete' && 
+                    $record->app_status === 'connected'
+                ),
+
+            // Connect - only when deployment complete and app pending
+            Tables\Actions\Action::make('connect')
+                ->label('Connect')
+                ->icon('heroicon-o-link')
+                ->visible(fn (Application $record) => 
+        $record->deployment_status === 'complete' && 
+        ($record->app_status === 'pending' || $record->app_status === 'ssl_failed')
+    )
+                ->action(function (Application $record) {
+                    try {
+                        if (empty($record->application_sshkey_private)) {
+                            throw new \Exception('SSH private key not found');
+                        }
+
+                        $sshService = new SSHConnectionService();
+                        $privateKey = $record->application_sshkey_private;
+                      //   $privateKey = $record->server_sshkey_private;
+                 
+                     /*   $key = PublicKeyLoader::load($privateKey);
+                     
+                       $ssh = new SSH2($record->server->server_ip);
+                
+                      
+                      $connected = $ssh->login($record->system_user, $key);
+                      */
+                       $connected = $sshService->testConnection(
+                $record->server->server_ip,
+                $record->system_user,
+                $privateKey
+            );
+
+                 
+                        if (!$connected) {
+                            throw new \Exception('SSH authentication failed');
+                        }
+                        
+
+                        if ($connected) {
+                            $record->update(['app_status' => 'connected']);
+                            
+                            Notification::make()
+                                ->title('Connection Successful')
+                                ->success()
+                                ->body('Successfully connected to application server.')
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title('Connection Failed')
+                                ->danger()
+                                ->body('Failed to establish SSH connection.')
+                                ->send();
+                        }
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->title('Connection Error')
+                            ->danger()
+                            ->body('Error: ' . $e->getMessage())
+                            ->send();
+                            
+                        \Log::error('SSH connection failed: ' . $e->getMessage());
+                    }
+                }),
+
+            // Retry SSL - only when app_status is ssl_failed
+            Tables\Actions\Action::make('retry_ssl')
+                ->label('Retry SSL')
+                ->icon('heroicon-o-shield-check')
+                ->visible(fn (Application $record) => $record->app_status === 'ssl_failed')
+                ->action(function (Application $record) {
+                    $server = $record->server;
+                    $controlPanelService = $server->getControlPanelService();
+
+                    try {
+                        $sslResponse = $controlPanelService->installSSL([
+                            'server_id' => $server->controlpanel_server_id,
+                            'application_id' => $record->controlpanel_app_id,
+                            'domain' => $record->hostname,
+                            'type' => 'letsencrypt'
+                        ]);
+
+                        if (!$sslResponse) {
+                            Notification::make()
+                                ->title('SSL Installation Warning')
+                                ->warning()
+                                ->body('SSL installation may have failed or is pending.')
+                                ->send();
+                        } else {
+                            $record->update(['app_status' => 'pending']);
+                            
+                            Notification::make()
+                                ->title('SSL Certificate Installed')
+                                ->success()
+                                ->body('SSL certificate has been installed successfully!')
+                                ->send();
+                        }
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->title('SSL Installation Failed')
+                            ->warning()
+                            ->body('SSL installation failed: ' . $e->getMessage())
+                            ->send();
+                        
+                        $record->update(['app_status' => 'ssl_failed']);
+                        \Log::warning('SSL installation failed: ' . $e->getMessage());
+                    }
+                }),
+            
+     //       ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
                     ->visible(fn (Application $record) => $record->app_status === 'connected'),
@@ -221,6 +367,7 @@ class ApplicationResource extends Resource
             'create' => Pages\CreateApplication::route('/create'),
             'view' => Pages\ViewApplication::route('/{record}'),
             'edit' => Pages\EditApplication::route('/{record}/edit'),
+            'manage' => Pages\ManageApplication::route('/{record}/manage'),
         ];
     }
 }

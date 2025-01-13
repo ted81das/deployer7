@@ -26,12 +26,17 @@ class ControlPanelServiceFactory
 
         $serviceClass = self::SERVICE_MAP[$type];
         
-      //  dd($serviceClass, $credentials);
+       $credentials = (string) $credentials;
         
-       // dd($serviceClass($credentials));
-      //  return new $serviceClass($credentials); 
- return new $serviceClass($credentials, $type);
+     // Special handling for ServerAvatar
+    if ($type === 'serveravatar') {
+        // Since we know credentials is valid from your debug output
+        return new $serviceClass($credentials);
+    }
+
+    // For other services
+    return new $serviceClass($credentials, $type);
+    }
 
         //return app($serviceClass);
-    }
 }
