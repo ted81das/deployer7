@@ -472,7 +472,7 @@ $response = Http::withHeaders([
             $applicationData = [
                 'name' => $data['name'],
                 'hostname' => $data['hostname'],
-                'web_directory' => $data['web_directory'] ?? 'public_html',
+                'web_directory' => $data['web_directory'],
                 'php_version' => $data['php_version'] ?? '8.2',
                 'method' => 'git',
                 'framework'=>'github',
@@ -1001,6 +1001,273 @@ public function showServerStatus(string $serverId): array
     }
 }
 
+
+
+
+//Additional Framework Apps 
+
+/**
+ * Create phpMyAdmin application
+ */
+public function createPhpMyAdminApp(array $data): array
+{
+    try {
+        $payload = [
+            'name' => $data['name'],
+            'method' => 'one_click',
+            'framework' => 'phpmyadmin',
+            'temp_domain' => 0,
+            'hostname' => $data['hostname'],
+            'systemUser' => 'existing',
+            'systemUserId' => $data['system_user_id'],
+            'systemUserInfo' => [
+                'username' => $data['system_username'],
+                'password' => $data['system_password']
+            ],
+            'www' => false,
+            'php_version' => $data['php_version'] ?? '7.4'
+        ];
+
+        return $this->makeRequest('POST', "/servers/{$data['server_id']}/applications", $payload);
+    } catch (\Exception $e) {
+        Log::error('PhpMyAdmin application creation failed', [
+            'error' => $e->getMessage(),
+            'server_id' => $data['server_id']
+        ]);
+        throw new ApplicationCreationException("Failed to create PhpMyAdmin application: {$e->getMessage()}");
+    }
+}
+
+/**
+ * Create Nextcloud application
+ */
+public function createNextcloudApp(array $data): array
+{
+    try {
+        $payload = [
+            'name' => $data['name'],
+            'method' => 'one_click',
+            'framework' => 'nextcloud',
+            'temp_domain' => 0,
+            'hostname' => $data['hostname'],
+            'systemUser' => 'existing',
+            'systemUserId' => $data['system_user_id'],
+            'systemUserInfo' => [
+                'username' => $data['system_username'],
+                'password' => $data['system_password']
+            ],
+            'php_version' => $data['php_version'] ?? '8.2',
+            'www' => false,
+            'email' => $data['admin_email'],
+            'username' => $data['admin_username'],
+            'password' => $data['admin_password'],
+            'database_name' => $data['database_name'] ?? Str::slug($data['name'], '_')
+        ];
+
+        return $this->makeRequest('POST', "/servers/{$data['server_id']}/applications", $payload);
+    } catch (\Exception $e) {
+        Log::error('Nextcloud application creation failed', [
+            'error' => $e->getMessage(),
+            'server_id' => $data['server_id']
+        ]);
+        throw new ApplicationCreationException("Failed to create Nextcloud application: {$e->getMessage()}");
+    }
+}
+
+/**
+ * Create WordPress application
+ */
+public function createWordPressApp(array $data): array
+{
+    try {
+        $payload = [
+            'name' => $data['name'],
+            'method' => 'one_click',
+            'framework' => 'wordpress',
+            'temp_domain' => 0,
+            'hostname' => $data['hostname'],
+            'systemUser' => 'existing',
+            'systemUserId' => $data['system_user_id'],
+            'systemUserInfo' => [
+                'username' => $data['system_username'],
+                'password' => $data['system_password']
+            ],
+            'php_version' => $data['php_version'] ?? '8.2',
+            'webroot' => $data['webroot'] ?? '',
+            'timezone' => $data['timezone'] ?? 'UTC',
+            'site_language' => $data['site_language'] ?? 'en_US',
+            'www' => false,
+            'email' => $data['admin_email'],
+            'title' => $data['site_title'],
+            'username' => $data['admin_username'],
+            'password' => $data['admin_password'],
+            'install_litespeed_cache_plugin' => $data['install_litespeed_cache'] ?? false,
+            'database_name' => $data['database_name'] ?? Str::slug($data['name'], '_'),
+            'db_prefix' => $data['db_prefix'] ?? 'wp_'
+        ];
+
+        return $this->makeRequest('POST', "/servers/{$data['server_id']}/applications", $payload);
+    } catch (\Exception $e) {
+        Log::error('WordPress application creation failed', [
+            'error' => $e->getMessage(),
+            'server_id' => $data['server_id']
+        ]);
+        throw new ApplicationCreationException("Failed to create WordPress application: {$e->getMessage()}");
+    }
+}
+
+
+/**
+ * Create Joomla application
+ */
+public function createJoomlaApp(array $data): array
+{
+    try {
+        $payload = [
+            'name' => $data['name'],
+            'method' => 'one_click',
+            'framework' => 'joomla',
+            'temp_domain' => 0,
+            'hostname' => $data['hostname'],
+            'systemUser' => 'existing',
+            'systemUserId' => $data['system_user_id'],
+            'systemUserInfo' => [
+                'username' => $data['system_username'],
+                'password' => $data['system_password']
+            ],
+            'webroot' => $data['webroot'] ?? '',
+            'www' => false,
+            'php_version' => $data['php_version'] ?? '7.4'
+        ];
+
+        return $this->makeRequest('POST', "/servers/{$data['server_id']}/applications", $payload);
+    } catch (\Exception $e) {
+        Log::error('Joomla application creation failed', [
+            'error' => $e->getMessage(),
+            'server_id' => $data['server_id']
+        ]);
+        throw new ApplicationCreationException("Failed to create Joomla application: {$e->getMessage()}");
+    }
+}
+
+/**
+ * Create Moodle application
+ */
+public function createMoodleApp(array $data): array
+{
+    try {
+        $payload = [
+            'name' => $data['name'],
+            'method' => 'one_click',
+            'framework' => 'moodle',
+            'temp_domain' => 0,
+            'hostname' => $data['hostname'],
+            'systemUser' => 'existing',
+            'systemUserId' => $data['system_user_id'],
+            'systemUserInfo' => [
+                'username' => $data['system_username'],
+                'password' => $data['system_password']
+            ],
+            'webroot' => $data['webroot'] ?? '',
+            'www' => false,
+            'fullname' => $data['fullname'],
+            'shortname' => $data['shortname'],
+            'summary' => $data['summary'],
+            'username' => $data['admin_username'],
+            'password' => $data['admin_password'],
+            'php_version' => $data['php_version'] ?? '8.0',
+            'database_name' => $data['database_name'] ?? Str::slug($data['name'], '_')
+        ];
+
+        return $this->makeRequest('POST', "/servers/{$data['server_id']}/applications", $payload);
+    } catch (\Exception $e) {
+        Log::error('Moodle application creation failed', [
+            'error' => $e->getMessage(),
+            'server_id' => $data['server_id']
+        ]);
+        throw new ApplicationCreationException("Failed to create Moodle application: {$e->getMessage()}");
+    }
+}
+
+/**
+ * Create Mautic application
+ */
+public function createMauticApp(array $data): array
+{
+    try {
+        $payload = [
+            'name' => $data['name'],
+            'method' => 'one_click',
+            'framework' => 'mautic',
+            'temp_domain' => 0,
+            'hostname' => $data['hostname'],
+            'systemUser' => 'existing',
+            'systemUserId' => $data['system_user_id'],
+            'systemUserInfo' => [
+                'username' => $data['system_username'],
+                'password' => $data['system_password']
+            ],
+            'webroot' => $data['webroot'] ?? '',
+            'www' => false,
+            'firstname' => $data['firstname'],
+            'lastname' => $data['lastname'],
+            'email' => $data['admin_email'],
+            'title' => $data['title'],
+            'username' => $data['admin_username'],
+            'password' => $data['admin_password'],
+            'mailer_name' => $data['mailer_name'],
+            'mailer_host' => $data['mailer_host'],
+            'mailer_port' => $data['mailer_port'],
+            'mailer_username' => $data['mailer_username'],
+            'mailer_password' => $data['mailer_password'],
+            'php_version' => $data['php_version'] ?? '7.4',
+            'database_name' => $data['database_name'] ?? Str::slug($data['name'], '_')
+        ];
+
+        return $this->makeRequest('POST', "/servers/{$data['server_id']}/applications", $payload);
+    } catch (\Exception $e) {
+        Log::error('Mautic application creation failed', [
+            'error' => $e->getMessage(),
+            'server_id' => $data['server_id']
+        ]);
+        throw new ApplicationCreationException("Failed to create Mautic application: {$e->getMessage()}");
+    }
+}
+
+/**
+ * Create Statamic application
+ */
+public function createStatamicApp(array $data): array
+{
+    try {
+        $payload = [
+            'name' => $data['name'],
+            'method' => 'one_click',
+            'framework' => 'statamic',
+            'temp_domain' => 0,
+            'hostname' => $data['hostname'],
+            'systemUser' => 'existing',
+            'systemUserId' => $data['system_user_id'],
+            'systemUserInfo' => [
+                'username' => $data['system_username'],
+                'password' => $data['system_password']
+            ],
+            'www' => false,
+            'email' => $data['admin_email'],
+            'password' => $data['admin_password'],
+            'php_version' => $data['php_version'] ?? '8.2',
+            'webroot' => $data['webroot'] ?? 'public'
+        ];
+
+        return $this->makeRequest('POST', "/servers/{$data['server_id']}/applications", $payload);
+    } catch (\Exception $e) {
+        Log::error('Statamic application creation failed', [
+            'error' => $e->getMessage(),
+            'server_id' => $data['server_id']
+        ]);
+        throw new ApplicationCreationException("Failed to create Statamic application: {$e->getMessage()}");
+    }
+}
 
 
 

@@ -9,6 +9,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Application extends Model
 {
     use HasFactory, SoftDeletes;
+    
+    const FRAMEWORK_TYPES = [
+        'wordpress',
+        'nextcloud',
+        'phpmyadmin',
+        'joomla',
+        'moodle',
+        'mautic',
+        'statamic',
+        'customgitprivate',
+        'laravel',
+        'customgitpublic'
+    ];
 
     protected $fillable = [
         // Core Information
@@ -73,6 +86,13 @@ class Application extends Model
         'admin_user',
         'admin_password',
         'admin_email',
+        
+        //additional
+        'framework_type',
+        'framework_settings',
+        'db_prefix',
+        'site_title',
+        'force_ssl',
 
         // PHP-FPM Settings
         'pm_type',
@@ -198,7 +218,10 @@ class Application extends Model
         'pm_type' => 'string',
         'deployment_status' => 'string',
         'app_status' => 'string',
-        'health_check_status' => 'string'
+        'health_check_status' => 'string',
+        
+        'framework_settings' => 'array',
+        'force_ssl' => 'boolean'
     ];
 
     protected $hidden = [
@@ -279,7 +302,14 @@ class Application extends Model
         'project_id' => ['required_if:git_provider,gitlab', 'string'],
         'repository' => ['required_if:git_type,private', 'string'],
         'clone_url' => ['required_if:git_type,public', 'url'],
-        'file_name' => ['nullable', 'string']
+        'file_name' => ['nullable', 'string'],
+         'framework_type' => ['required', 'string', Rule::in(self::FRAMEWORK_TYPES)],
+        'framework_settings' => 'nullable|array',
+        'db_prefix' => 'nullable|string|max:4',
+        'admin_email' => 'nullable|email',
+        'admin_username' => 'nullable|string|max:255',
+        'site_title' => 'nullable|string|max:255',
+        'force_ssl' => 'boolean'
     ];
 
     // Relationships
@@ -339,4 +369,65 @@ class Application extends Model
     {
         return $this->health_check_status === self::HEALTH_STATUS_HEALTHY;
     }
+
+  // Helper methods
+    public function getFrameworkSettings(string $key = null, $default = null)
+    {
+        if ($key === null) {
+            return $this->framework_settings;
+        }
+        return data_get($this->framework_settings, $key, $default);
+    }
+
+    // Framework type checker methods
+    public function isWordPress(): bool
+    {
+        return $this->framework_type === 'wordpress';
+    }
+
+    public function isNextcloud(): bool
+    {
+        return $this->framework_type === 'nextcloud';
+    }
+
+    public function isPhpMyAdmin(): bool
+    {
+        return $this->framework_type === 'phpmyadmin';
+    }
+
+    public function isJoomla(): bool
+    {
+        return $this->framework_type === 'joomla';
+    }
+
+    public function isMoodle(): bool
+    {
+        return $this->framework_type === 'moodle';
+    }
+
+    public function isMautic(): bool
+    {
+        return $this->framework_type === 'mautic';
+    }
+
+    public function isStatamic(): bool
+    {
+        return $this->framework_type === 'statamic';
+    }
+  
+  public function isCustomgitprivate(): bool
+    {
+        return $this->framework_type === 'customgitprivate';
+    }
+    
+      public function isCustomgitpublic(): bool
+    {
+        return $this->framework_type === 'laravel';
+    }
+    
+      public function isCustomgitpublic(): bool
+    {
+        return $this->framework_type === 'customgitpublic';
+    }
+  
 }
