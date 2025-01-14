@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\Rules\Rule;
 
 class Application extends Model
 {
@@ -303,7 +304,9 @@ class Application extends Model
         'repository' => ['required_if:git_type,private', 'string'],
         'clone_url' => ['required_if:git_type,public', 'url'],
         'file_name' => ['nullable', 'string'],
-         'framework_type' => ['required', 'string', Rule::in(self::FRAMEWORK_TYPES)],
+//         'framework_type' => ['required', 'string', Rule::in(self::FRAMEWORK_TYPES)],
+         'framework_type' => ['required', 'string'],
+
         'framework_settings' => 'nullable|array',
         'db_prefix' => 'nullable|string|max:4',
         'admin_email' => 'nullable|email',
@@ -420,7 +423,7 @@ class Application extends Model
         return $this->framework_type === 'customgitprivate';
     }
     
-      public function isCustomgitpublic(): bool
+      public function isLaravel(): bool
     {
         return $this->framework_type === 'laravel';
     }

@@ -10,21 +10,45 @@ class ApplicationType extends Model
 {
     use HasFactory, SoftDeletes;
 
+
+// Add new constants for application types
+    const TYPE_JOOMLA = 'joomla';
+    const TYPE_PHPMYADMIN = 'phpmyadmin';
+    const TYPE_LARAVEL = 'laravel';
+    const TYPE_STATAMIC = 'statamic';
+    const TYPE_MOODLE = 'moodle';
+    const TYPE_MAUTIC = 'mautic';
+    const TYPE_CUSTOMGITPRIVATE = 'customgitprivate';
+    const TYPE_CUSTOMGITPUBLIC = 'customgitpublic';
+
+    // Add new constants for class types
+    const CLASS_FRAMEWORK = 'framework';
+    const CLASS_CUSTOM = 'custom';
+
+    // Add new constants for CLI frameworks
+    const CLI_FRAMEWORK_WORDPRESS = 'wordpress';
+    const CLI_FRAMEWORK_DRUPAL = 'drupal';
+    const CLI_FRAMEWORK_LARAVEL = 'laravel';
+    const CLI_FRAMEWORK_NEXTCLOUD = 'occ-nextcloud';
+    const CLI_FRAMEWORK_PLAIN = 'plain-bash';
+
+
     protected $fillable = [
-        'name',
+      'name',
         'type',
+        'server_control_panel_type',
+        'class_type',
+        'cli_framework',
         'description',
         'is_active',
         'is_global',
         'is_git',
-        'is_git_supported',
-        'git_deployment_url',
-        'file_name',
-        'git_provider_id',
-        'repository',
-        'username',
-        'repository_name',
-        'branch',
+        'repo_type',
+        'repo_url',
+        'repo_project',
+        'repository_name', // Kept as is
+        'repo_username',
+        'repo_branch',
         'default_branch',
         'deployment_script_template',
         'deployment_script',
@@ -36,16 +60,15 @@ class ApplicationType extends Model
         'recommended_php_version',
         'supported_databases',
         'default_web_server',
-        'configuration_options',
         'allowed_web_server_types',
+        'configuration_options',
         'user_id',
         'icon_path',
         'documentation_url',
-        'template_id',
-        'cloudpanel_curl',
-        'is_cloud_curl_script',
-        'has_cli'
-    ];
+        'has_cli',
+        'cloudpanel_curl', // Kept as is
+        'is_cloud_curl_script' // Kept as is
+    ]; 
 
     protected $casts = [
         'is_active' => 'boolean',
